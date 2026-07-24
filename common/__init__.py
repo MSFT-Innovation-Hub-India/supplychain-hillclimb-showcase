@@ -1,0 +1,1 @@
+"""Shared scenario, prompt, and scoring contracts."""

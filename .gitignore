@@ -1,0 +1,8 @@
+.env
+.pytest_cache/
+__pycache__/
+*.py[cod]
+01_baseline_teacher/traces/*.jsonl
+01_baseline_teacher/traces/pilot_gate.json
+02_dataset_build/data/*.jsonl
+04_evaluation/results/*.json

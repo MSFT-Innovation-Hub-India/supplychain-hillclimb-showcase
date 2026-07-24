@@ -1,0 +1,177 @@
+{
+  "scenario_id": "tight-40014",
+  "family": "tight",
+  "orders": [
+    {
+      "order_id": "O40014-01",
+      "sku": "A",
+      "quantity": 1,
+      "priority": 1,
+      "deadline_hours": 24,
+      "substitute_sku": "A2",
+      "margin": 87
+    },
+    {
+      "order_id": "O40014-02",
+      "sku": "D",
+      "quantity": 2,
+      "priority": 2,
+      "deadline_hours": 36,
+      "substitute_sku": null,
+      "margin": 108
+    },
+    {
+      "order_id": "O40014-03",
+      "sku": "C",
+      "quantity": 2,
+      "priority": 2,
+      "deadline_hours": 36,
+      "substitute_sku": null,
+      "margin": 62
+    },
+    {
+      "order_id": "O40014-04",
+      "sku": "D",
+      "quantity": 1,
+      "priority": 1,
+      "deadline_hours": 36,
+      "substitute_sku": null,
+      "margin": 44
+    },
+    {
+      "order_id": "O40014-05",
+      "sku": "A",
+      "quantity": 2,
+      "priority": 2,
+      "deadline_hours": 18,
+      "substitute_sku": "A2",
+      "margin": 102
+    },
+    {
+      "order_id": "O40014-06",
+      "sku": "B",
+      "quantity": 2,
+      "priority": 3,
+      "deadline_hours": 30,
+      "substitute_sku": "B2",
+      "margin": 76
+    },
+    {
+      "order_id": "O40014-07",
+      "sku": "B",
+      "quantity": 2,
+      "priority": 3,
+      "deadline_hours": 36,
+      "substitute_sku": "B2",
+      "margin": 107
+    },
+    {
+      "order_id": "O40014-08",
+      "sku": "D",
+      "quantity": 2,
+      "priority": 2,
+      "deadline_hours": 12,
+      "substitute_sku": null,
+      "margin": 62
+    },
+    {
+      "order_id": "O40014-09",
+      "sku": "B",
+      "quantity": 2,
+      "priority": 1,
+      "deadline_hours": 18,
+      "substitute_sku": "B2",
+      "margin": 101
+    },
+    {
+      "order_id": "O40014-10",
+      "sku": "A",
+      "quantity": 1,
+      "priority": 2,
+      "deadline_hours": 24,
+      "substitute_sku": "A2",
+      "margin": 46
+    },
+    {
+      "order_id": "O40014-11",
+      "sku": "C",
+      "quantity": 3,
+      "priority": 1,
+      "deadline_hours": 12,
+      "substitute_sku": null,
+      "margin": 56
+    },
+    {
+      "order_id": "O40014-12",
+      "sku": "C",
+      "quantity": 2,
+      "priority": 2,
+      "deadline_hours": 30,
+      "substitute_sku": null,
+      "margin": 123
+    },
+    {
+      "order_id": "O40014-13",
+      "sku": "B",
+      "quantity": 1,
+      "priority": 3,
+      "deadline_hours": 30,
+      "substitute_sku": "B2",
+      "margin": 96
+    }
+  ],
+  "warehouses": [
+    {
+      "warehouse_id": "W1",
+      "available": false,
+      "inventory": {
+        "A": 7,
+        "A2": 12,
+        "B": 11,
+        "B2": 10,
+        "C": 3,
+        "D": 7
+      },
+      "shipment_capacity": 19,
+      "standard_hours": 36,
+      "standard_cost": 5,
+      "expedite_hours": 8,
+      "expedite_cost": 14
+    },
+    {
+      "warehouse_id": "W2",
+      "available": true,
+      "inventory": {
+        "A": 3,
+        "A2": 9,
+        "B": 5,
+        "B2": 4,
+        "C": 9,
+        "D": 8
+      },
+      "shipment_capacity": 17,
+      "standard_hours": 36,
+      "standard_cost": 4,
+      "expedite_hours": 12,
+      "expedite_cost": 18
+    },
+    {
+      "warehouse_id": "W3",
+      "available": true,
+      "inventory": {
+        "A": 11,
+        "A2": 3,
+        "B": 7,
+        "B2": 11,
+        "C": 10,
+        "D": 10
+      },
+      "shipment_capacity": 16,
+      "standard_hours": 18,
+      "standard_cost": 8,
+      "expedite_hours": 8,
+      "expedite_cost": 11
+    }
+  ],
+  "expedite_budget": 132
+}
