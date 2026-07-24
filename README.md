@@ -72,5 +72,6 @@ This is normally a solver-style optimization problem. Here it provides a control
 - [Baseline teacher](01_baseline_teacher/README.md): model, full policy prompt, and best-of-three label capture.
 - [Dataset build](02_dataset_build/README.md): conversion of teacher traces into SFT and RFT fine-tuning datasets.
 - [Fine-tuning](03_finetuning/README.md): managed SFT/RFT submission, monitoring, and model deployment.
+- [Held-out evaluation](04_evaluation/README.md): paired quality, token cost, latency, and hill-climb comparison.
 - [Experiment runbook](RUNBOOK.txt): dataset generation, fine-tuning, deployment, and evaluation.
 - [Comparison application](model_comparison_app/README.md): run the interactive SFT, RFT, and teacher comparison.

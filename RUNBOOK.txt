@@ -35,7 +35,11 @@ because Azure allows fine-tuning this deprecated model but not deploying it raw.
    .\.venv\Scripts\python.exe 03_finetuning/deploy_finetuned_model.py MODEL_ID DEPLOYMENT_NAME --confirm-paid
 
 7. Evaluate the required three references on the same 150 held-out scenarios:
-   .\.venv\Scripts\python.exe 04_evaluation/evaluate.py --arm teacher=TEACHER_DEPLOYMENT --arm rft=RFT_DEPLOYMENT --arm sft=SFT_DEPLOYMENT --count 150 --compare rft,sft --confirm-paid
+   Review current Azure per-million-token rates for each deployment, then run:
+   .\.venv\Scripts\python.exe 04_evaluation/evaluate.py --arm teacher=TEACHER_DEPLOYMENT --arm sft=SFT_DEPLOYMENT --arm rft=RFT_DEPLOYMENT --pricing teacher=INPUT_RATE,OUTPUT_RATE,CACHED_INPUT_RATE --pricing sft=INPUT_RATE,OUTPUT_RATE,CACHED_INPUT_RATE --pricing rft=INPUT_RATE,OUTPUT_RATE,CACHED_INPUT_RATE --count 150 --compare rft,sft --confirm-paid
+
+   Plot quality versus P50 latency with estimated cost represented by bubble size:
+   .\.venv\Scripts\python.exe 04_evaluation/plot_hill_climb.py 04_evaluation/results/evaluation-YYYYMMDD-HHMMSS.json --output 04_evaluation/results/hill-climb.png
 
    Add raw_rft or raw_sft arms only when those exact raw deployments exist.
 
