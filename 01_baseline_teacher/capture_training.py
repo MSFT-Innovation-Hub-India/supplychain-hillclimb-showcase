@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from common.model_client import create_client, request_plan
+from common.plan_feedback import revision_feedback
 from common.scenario import generate_split
 from common.scoring import score_plan
 from common.fine_tuning_api import require_paid_confirmation, require_pilot_gate
@@ -18,18 +19,23 @@ from common.fine_tuning_api import require_paid_confirmation, require_pilot_gate
 OUTPUT = Path(__file__).resolve().parent / "traces" / "training.jsonl"
 
 
-def capture_split(client, deployment: str, split: str, scenarios: list[dict], attempts: int, threshold: float, output, completed: set[tuple[str, str]]) -> None:
+def capture_split(client, deployment: str, reasoning_effort: str, split: str, scenarios: list[dict], attempts: int, threshold: float, output, completed: set[tuple[str, str]]) -> None:
     for scenario in scenarios:
         key = (split, scenario["scenario_id"])
         if key in completed:
             print(split, scenario["scenario_id"], "resumed")
             continue
         candidates = []
+        best = None
         for attempt in range(1, attempts + 1):
-            plan, usage = request_plan(client, deployment, scenario)
+            previous_plan = best["plan"] if best is not None else None
+            feedback = revision_feedback(best["plan"], scenario, best["result"]) if best is not None else None
+            plan, usage = request_plan(client, deployment, scenario, previous_plan, feedback, reasoning_effort)
             result = score_plan(plan, scenario)
-            candidates.append({"attempt": attempt, "plan": plan, "result": result, "usage": usage})
-        best = max(candidates, key=lambda candidate: candidate["result"]["score"])
+            candidate = {"attempt": attempt, "reasoning_effort": reasoning_effort, "plan": plan, "result": result, "usage": usage}
+            candidates.append(candidate)
+            if best is None or result["score"] > best["result"]["score"]:
+                best = candidate
         output.write(json.dumps({
             "split": split,
             "scenario": scenario,
@@ -45,6 +51,7 @@ def main(train_count: int, valid_count: int, attempts: int, threshold: float, co
     load_dotenv(override=True)
     client = create_client()
     deployment = os.environ["TEACHER_DEPLOYMENT"]
+    reasoning_effort = os.environ.get("TEACHER_REASONING_EFFORT", "medium")
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     completed: set[tuple[str, str]] = set()
     if resume and OUTPUT.exists():
@@ -54,8 +61,8 @@ def main(train_count: int, valid_count: int, attempts: int, threshold: float, co
             if (row := json.loads(line))
         }
     with OUTPUT.open("a" if resume else "w", encoding="utf-8") as output:
-        capture_split(client, deployment, "train", generate_split(30_000, train_count), attempts, threshold, output, completed)
-        capture_split(client, deployment, "valid", generate_split(40_000, valid_count), attempts, threshold, output, completed)
+        capture_split(client, deployment, reasoning_effort, "train", generate_split(30_000, train_count), attempts, threshold, output, completed)
+        capture_split(client, deployment, reasoning_effort, "valid", generate_split(40_000, valid_count), attempts, threshold, output, completed)
     print(f"wrote {OUTPUT}")
 
 

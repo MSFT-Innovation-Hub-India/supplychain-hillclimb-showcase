@@ -1,0 +1,20 @@
+{
+  "summary": {
+    "teacher": {
+      "mean_score": 0.6102,
+      "feasible_rate": 0.8,
+      "partial_reward_rate": 0.42,
+      "score_stddev": 0.3242,
+      "dominant_pattern_share": 0.26,
+      "first_attempt_mean": 0.3373,
+      "first_attempt_high_quality_rate": 0.1
+    }
+  },
+  "checks": {
+    "teacher_not_effortlessly_near_optimal": true
+  },
+  "passed": true,
+  "limitations": [
+    "Raw o4-mini is deprecated and cannot be deployed; baseline competence and RFT uplift over its raw checkpoint are unmeasurable."
+  ]
+}

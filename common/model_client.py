@@ -17,22 +17,49 @@ def create_client() -> OpenAI:
     endpoint = os.environ["AZURE_OPENAI_ENDPOINT"].rstrip("/")
     if not endpoint.endswith("/openai/v1"):
         endpoint += "/openai/v1"
+    timeout_seconds = float(os.environ.get("MODEL_REQUEST_TIMEOUT_SECONDS", "600"))
     token_provider = get_bearer_token_provider(
         DefaultAzureCredential(process_timeout=20), "https://ai.azure.com/.default"
     )
-    return OpenAI(base_url=endpoint, api_key=token_provider, timeout=180.0, max_retries=2)
+    return OpenAI(base_url=endpoint, api_key=token_provider, timeout=timeout_seconds, max_retries=2)
 
 
-def request_plan(client: OpenAI, deployment: str, scenario: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, int | float]]:
+def plan_messages(
+    scenario: dict[str, Any],
+    previous_plan: dict[str, Any] | None = None,
+    feedback: str | None = None,
+) -> list[dict[str, str]]:
+    messages = [
+        {"role": "developer", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": scenario_message(scenario)},
+    ]
+    if previous_plan is not None and feedback is not None:
+        messages.extend(
+            [
+                {"role": "assistant", "content": json.dumps(previous_plan, separators=(",", ":"))},
+                {"role": "user", "content": feedback},
+            ]
+        )
+    return messages
+
+
+def request_plan(
+    client: OpenAI,
+    deployment: str,
+    scenario: dict[str, Any],
+    previous_plan: dict[str, Any] | None = None,
+    feedback: str | None = None,
+    reasoning_effort: str | None = None,
+) -> tuple[dict[str, Any] | None, dict[str, int | float]]:
     started = time.perf_counter()
-    response = client.chat.completions.create(
-        model=deployment,
-        messages=[
-            {"role": "developer", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": scenario_message(scenario)},
-        ],
-        response_format={"type": "json_object"},
-    )
+    request: dict[str, Any] = {
+        "model": deployment,
+        "messages": plan_messages(scenario, previous_plan, feedback),
+        "response_format": {"type": "json_object"},
+    }
+    if reasoning_effort is not None:
+        request["reasoning_effort"] = reasoning_effort
+    response = client.chat.completions.create(**request)
     latency_seconds = time.perf_counter() - started
     usage = response.usage
     try:

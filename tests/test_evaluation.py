@@ -80,3 +80,21 @@ def test_old_usage_rows_are_supported_but_marked_incomplete():
     assert inference["totals"]["output_tokens"] == 20
     assert inference["telemetry_complete"] is False
     assert inference["latency_seconds"]["p50"] is None
+
+
+def test_reasoning_parser_accepts_explicit_per_arm_effort():
+    evaluation = load_evaluation_module()
+    assert evaluation.parse_reasoning(["teacher_high=high", "rft=medium"]) == {
+        "teacher_high": "high",
+        "rft": "medium",
+    }
+
+
+def test_reasoning_parser_rejects_unknown_effort():
+    evaluation = load_evaluation_module()
+    try:
+        evaluation.parse_reasoning(["teacher=default"])
+    except ValueError as error:
+        assert "reasoning effort" in str(error)
+    else:
+        raise AssertionError("unknown reasoning effort was accepted")

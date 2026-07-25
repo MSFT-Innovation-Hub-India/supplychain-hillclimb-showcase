@@ -8,17 +8,20 @@ This stage compares teacher, SFT, and RFT deployments on the same deterministic 
 
 The test scenarios start at seed `50_000` and rotate through tight, mixed, and loose families. They do not overlap the training or validation splits. Every arm receives the same scenario objects in the same order, enabling paired comparisons.
 
-The latest complete run is documented in [Teacher vs SFT vs RFT Evaluation Results](results/evaluation-20260724-225229.md), with links to its raw JSON report and hill-climb chart.
+The latest reasoning comparison is documented in [Reasoning Hill-Climb Evaluation](results/reasoning-hill-climb-20260725.md). The original three-arm run remains documented in [Teacher vs SFT vs RFT Evaluation Results](results/evaluation-20260724-225229.md).
 
 ## Latest Complete Results
 
-The July 24, 2026 run evaluated each arm on the same 150 held-out scenarios:
+The July 25 comparison retains the original July 24 runs and adds the completed teacher-medium run on the same 150 held-out scenarios:
 
-| Arm | Quality | Feasible | P50 / P95 latency | Avg input | Avg output | Avg reasoning | Estimated cost/scenario |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Teacher | 0.335 | 42.7% (64/150) | 4.54 s / 5.59 s | 1,123.6 | 472.2 | 0.0 | $0.0086 |
-| SFT | 0.313 | 38.7% (58/150) | 4.18 s / 4.68 s | 1,124.6 | 466.8 | 0.0 | $0.0012 |
-| RFT | **0.833** | **100% (150/150)** | 58.59 s / 100.53 s | 1,123.6 | 6,768.0 | 6,294.2 | $0.0310 |
+| Arm | Reasoning level | Quality | Feasible | P50 / P95 latency | Avg reasoning tokens | Estimated cost/scenario |
+|---|---|---:|---:|---:|---:|---:|
+| Teacher, previous run | Default / not set | 0.335 | 42.7% (64/150) | 4.54 s / 5.59 s | 0.0 | $0.0086 |
+| Teacher, current run | **Medium (explicit)** | **0.851** | 99.3% (149/150) | 66.68 s / 188.69 s | 6,463.4 | $0.0997 |
+| SFT | Default / not set | 0.313 | 38.7% (58/150) | 4.18 s / 4.68 s | 0.0 | $0.0012 |
+| RFT | Medium configured* | 0.833 | **100% (150/150)** | 58.59 s / 100.53 s | 6,294.2 | $0.0310 |
+
+\* The RFT training configuration used medium reasoning. Its historical evaluation did not persist the inference-time effort field, so this label is configuration-derived rather than directly recorded on each evaluation row.
 
 **Feasibility** is the percentage of scenarios where the model returned a valid, executable plan that satisfied schema, order coverage, inventory, capacity, substitution, quantity, warehouse, shipping-mode, and expedite-budget constraints. Feasibility does not guarantee a high-value plan; for example, deferring every order can be feasible while earning zero quality.
 
@@ -28,7 +31,7 @@ $$
 Q = 0.55S + 0.25M + 0.20C_e
 $$
 
-RFT beat SFT by 0.520 quality points with a paired bootstrap 95% confidence interval of `[0.461, 0.580]`, and passed all preregistered RFT winner criteria. Its quality gain came with substantially higher reasoning-token usage, latency, and estimated inference cost.
+Teacher-medium beat the previous teacher package by 0.516 quality points and narrowly beat RFT by 0.018 points with a paired 95% confidence interval of `[0.003, 0.029]`. The teacher comparison also includes a strengthened prompt, so it does not isolate reasoning effort as the sole cause. RFT retains perfect feasibility and materially lower latency and cost than teacher-medium.
 
 ## Run The Evaluation
 
@@ -42,6 +45,8 @@ Review the current Azure pricing for each deployed model, then pass the input an
   --pricing teacher=TEACHER_INPUT_RATE,TEACHER_OUTPUT_RATE,TEACHER_CACHED_INPUT_RATE `
   --pricing sft=SFT_INPUT_RATE,SFT_OUTPUT_RATE,SFT_CACHED_INPUT_RATE `
   --pricing rft=RFT_INPUT_RATE,RFT_OUTPUT_RATE,RFT_CACHED_INPUT_RATE `
+  --reasoning teacher=medium `
+  --reasoning rft=medium `
   --count 150 `
   --compare rft,sft `
   --confirm-paid

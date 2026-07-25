@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from common.model_client import create_client, request_plan
+from common.plan_feedback import revision_feedback
 from common.scenario import generate_split
 from common.scoring import score_plan
 
@@ -22,6 +23,7 @@ def main(count: int, attempts: int, confirm_paid: bool) -> None:
         raise SystemExit("billable model pilot blocked; rerun with --confirm-paid")
     load_dotenv(override=True)
     deployments = {"teacher": os.environ["TEACHER_DEPLOYMENT"]}
+    teacher_reasoning_effort = os.environ.get("TEACHER_REASONING_EFFORT", "medium")
     if raw_rft := os.environ.get("RFT_BASE_DEPLOYMENT"):
         deployments["raw_rft"] = raw_rft
     if raw_sft := os.environ.get("SFT_BASE_DEPLOYMENT"):
@@ -36,13 +38,16 @@ def main(count: int, attempts: int, confirm_paid: bool) -> None:
                 candidates = []
                 max_attempts = attempts if arm == "teacher" else 1
                 for attempt in range(1, max_attempts + 1):
-                    plan, usage = request_plan(client, deployment, scenario)
+                    previous_plan = best["plan"] if best is not None else None
+                    feedback = revision_feedback(best["plan"], scenario, best["result"]) if best is not None else None
+                    reasoning_effort = teacher_reasoning_effort if arm == "teacher" else None
+                    plan, usage = request_plan(client, deployment, scenario, previous_plan, feedback, reasoning_effort)
                     result = score_plan(plan, scenario)
-                    candidate = {"attempt": attempt, "plan": plan, "result": result, "usage": usage}
+                    candidate = {"attempt": attempt, "reasoning_effort": reasoning_effort, "plan": plan, "result": result, "usage": usage}
                     if best is None or result["score"] > best["result"]["score"]:
                         best = candidate
                     candidates.append(candidate)
-                record["arms"][arm] = {"best": best, "attempts": candidates}
+                record["arms"][arm] = {"reasoning_effort": reasoning_effort, "best": best, "attempts": candidates}
             output.write(json.dumps(record) + "\n")
             print(scenario["scenario_id"], {arm: round(value["best"]["result"]["score"], 3) for arm, value in record["arms"].items()})
     print(f"wrote {OUTPUT}")

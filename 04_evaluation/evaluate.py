@@ -48,9 +48,12 @@ def plan_pattern(plan: dict | None, scenario: dict) -> str:
     )
 
 
-def write_progress(path: Path, deployment: str, rows: list[dict]) -> None:
+def write_progress(path: Path, deployment: str, reasoning_effort: str | None, rows: list[dict]) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps({"deployment": deployment, "rows": rows}, indent=2), encoding="utf-8")
+    temporary.write_text(
+        json.dumps({"deployment": deployment, "reasoning_effort": reasoning_effort, "rows": rows}, indent=2),
+        encoding="utf-8",
+    )
     temporary.replace(path)
 
 
@@ -79,6 +82,17 @@ def parse_pricing(entries: list[str]) -> dict[str, dict[str, float]]:
             "cached_input_per_million": rates[2] if len(rates) == 3 else rates[0],
         }
     return pricing
+
+
+def parse_reasoning(entries: list[str]) -> dict[str, str]:
+    reasoning = {}
+    allowed = {"minimal", "low", "medium", "high"}
+    for entry in entries:
+        label, effort = entry.split("=", 1)
+        if effort not in allowed:
+            raise ValueError(f"reasoning effort must be one of {sorted(allowed)}")
+        reasoning[label] = effort
+    return reasoning
 
 
 def summarize_quality(rows: list[dict]) -> dict:
@@ -193,28 +207,32 @@ def evaluate_arm(
     scenarios: list[dict],
     progress_path: Path,
     rates: dict[str, float] | None,
+    reasoning_effort: str | None,
 ) -> dict:
     rows = []
     if progress_path.exists():
         progress = json.loads(progress_path.read_text(encoding="utf-8"))
         if progress.get("deployment") != deployment:
             raise ValueError(f"checkpoint deployment mismatch: {progress_path}")
+        if progress.get("reasoning_effort") != reasoning_effort:
+            raise ValueError(f"checkpoint reasoning effort mismatch: {progress_path}")
         rows = progress.get("rows", [])
     completed = {row["scenario_id"] for row in rows}
     for scenario in scenarios:
         if scenario["scenario_id"] in completed:
             print(deployment, scenario["scenario_id"], "resumed")
             continue
-        plan, usage = request_plan(client, deployment, scenario)
+        plan, usage = request_plan(client, deployment, scenario, reasoning_effort=reasoning_effort)
         result = score_plan(plan, scenario)
-        rows.append({"scenario_id": scenario["scenario_id"], "plan": plan, "result": result, "usage": usage, "pattern": plan_pattern(plan, scenario)})
-        write_progress(progress_path, deployment, rows)
+        rows.append({"scenario_id": scenario["scenario_id"], "reasoning_effort": reasoning_effort, "plan": plan, "result": result, "usage": usage, "pattern": plan_pattern(plan, scenario)})
+        write_progress(progress_path, deployment, reasoning_effort, rows)
         print(deployment, scenario["scenario_id"], round(result["score"], 3), result["category"])
     patterns = Counter(row["pattern"] for row in rows)
     all_defer = sum(row["pattern"].startswith("ship_fraction=0.0;") for row in rows) / len(rows)
     quality = summarize_quality(rows)
     return {
         "deployment": deployment,
+        "reasoning_effort": reasoning_effort,
         "mean_score": quality["mean_score"],
         "feasible_rate": quality["feasible_rate"],
         "dominant_pattern_share": max(patterns.values()) / len(rows),
@@ -244,25 +262,31 @@ def main(
     count: int,
     comparison: str | None,
     pricing_entries: list[str],
+    reasoning_entries: list[str],
     confirm_paid: bool,
 ) -> None:
     if not confirm_paid:
         raise SystemExit("billable live evaluation blocked; rerun with --confirm-paid")
     parsed = dict(arm.split("=", 1) for arm in arms)
     pricing = parse_pricing(pricing_entries)
+    reasoning = parse_reasoning(reasoning_entries)
     unknown_pricing_labels = set(pricing) - set(parsed)
     if unknown_pricing_labels:
         raise ValueError(f"pricing supplied for unknown arms: {sorted(unknown_pricing_labels)}")
+    unknown_reasoning_labels = set(reasoning) - set(parsed)
+    if unknown_reasoning_labels:
+        raise ValueError(f"reasoning supplied for unknown arms: {sorted(unknown_reasoning_labels)}")
     scenarios = generate_split(50_000, count, ("tight", "mixed", "loose"))
     client = create_client()
     RESULTS.mkdir(parents=True, exist_ok=True)
     results = {}
     progress_paths = []
     for label, deployment in parsed.items():
-        deployment_key = hashlib.sha256(deployment.encode()).hexdigest()[:12]
+        reasoning_effort = reasoning.get(label)
+        deployment_key = hashlib.sha256(f"{deployment}:{reasoning_effort}".encode()).hexdigest()[:12]
         progress_path = RESULTS / f".{label}-{count}-{deployment_key}.progress.json"
         progress_paths.append(progress_path)
-        results[label] = evaluate_arm(client, deployment, scenarios, progress_path, pricing.get(label))
+        results[label] = evaluate_arm(client, deployment, scenarios, progress_path, pricing.get(label), reasoning_effort)
     report = {
         "scenario_count": count,
         "arms": results,
@@ -331,6 +355,12 @@ if __name__ == "__main__":
         default=[],
         help="label=input_usd_per_million,output_usd_per_million[,cached_input_usd_per_million]",
     )
+    parser.add_argument(
+        "--reasoning",
+        action="append",
+        default=[],
+        help="label=minimal|low|medium|high; repeat for arms requiring explicit reasoning effort",
+    )
     parser.add_argument("--confirm-paid", action="store_true")
     args = parser.parse_args()
-    main(args.arm, args.count, args.compare, args.pricing, args.confirm_paid)
+    main(args.arm, args.count, args.compare, args.pricing, args.reasoning, args.confirm_paid)
