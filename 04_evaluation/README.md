@@ -8,20 +8,24 @@ This stage compares teacher, SFT, and RFT deployments on the same deterministic 
 
 The test scenarios start at seed `50_000` and rotate through tight, mixed, and loose families. They do not overlap the training or validation splits. Every arm receives the same scenario objects in the same order, enabling paired comparisons.
 
+One **scenario** is one complete disruption-recovery request containing 12-16 orders, three warehouses (one disrupted), inventory by SKU, warehouse shipment capacity, delivery times and costs, approved substitutes, and one shared expedite budget. A model must return one coordinated decision for every order. The reported time and cost per scenario cover one model request and its complete plan response.
+
 The latest reasoning comparison is documented in [Reasoning Hill-Climb Evaluation](results/reasoning-hill-climb-20260725.md). The original three-arm run remains documented in [Teacher vs SFT vs RFT Evaluation Results](results/evaluation-20260724-225229.md).
 
 ## Latest Complete Results
 
 The July 25 comparison retains the original July 24 runs and adds the completed teacher-medium run on the same 150 held-out scenarios:
 
-| Arm | Reasoning level | Quality | Feasible | P50 / P95 latency | Avg reasoning tokens | Estimated cost/scenario |
-|---|---|---:|---:|---:|---:|---:|
-| Teacher, previous run | Default / not set | 0.335 | 42.7% (64/150) | 4.54 s / 5.59 s | 0.0 | $0.0086 |
-| Teacher, current run | **Medium (explicit)** | **0.851** | 99.3% (149/150) | 66.68 s / 188.69 s | 6,463.4 | $0.0997 |
-| SFT | Default / not set | 0.313 | 38.7% (58/150) | 4.18 s / 4.68 s | 0.0 | $0.0012 |
-| RFT | Medium configured* | 0.833 | **100% (150/150)** | 58.59 s / 100.53 s | 6,294.2 | $0.0310 |
+| Arm | Reasoning level | Quality | Feasible | Mean time/scenario | P50 / P95 latency | Avg reasoning tokens | Token cost/scenario | Hosting cost/scenario** |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| Teacher, previous run | Default / not set | 0.335 | 42.7% (64/150) | 4.73 s | 4.54 s / 5.59 s | 0.0 | $0.00858 | N/A |
+| Teacher, current run | **Medium (explicit)** | **0.851** | 99.3% (149/150) | 82.50 s | 66.68 s / 188.69 s | 6,463.4 | $0.09975 | N/A |
+| SFT | Default / not set | 0.313 | 38.7% (58/150) | 4.14 s | 4.18 s / 4.68 s | 0.0 | $0.00119 | $0.00196 |
+| RFT | Medium configured* | 0.833 | **100% (150/150)** | 61.73 s | 58.59 s / 100.53 s | 6,294.2 | $0.03101 | $0.02915 |
 
 \* The RFT training configuration used medium reasoning. Its historical evaluation did not persist the inference-time effort field, so this label is configuration-derived rather than directly recorded on each evaluation row.
+
+\** Fine-tuned Standard/Global Standard hosting is `$1.70/hour`. The table allocates that continuously accruing fee over this sequential evaluation using `$1.70 × mean scenario seconds / 3,600`. This is `$0.2933` for the complete SFT run and `$4.3726` for the complete RFT run. Actual production hosting cost per scenario is `$1.70 / scenarios served per hour`; idle time increases it and concurrent throughput reduces it. Teacher deployments are not fine-tuned models, so this additional hosting fee does not apply here.
 
 **Feasibility** is the percentage of scenarios where the model returned a valid, executable plan that satisfied schema, order coverage, inventory, capacity, substitution, quantity, warehouse, shipping-mode, and expedite-budget constraints. Feasibility does not guarantee a high-value plan; for example, deferring every order can be feasible while earning zero quality.
 
@@ -53,6 +57,8 @@ Review the current Azure pricing for each deployed model, then pass the input an
 ```
 
 Pricing is explicit because Azure prices vary by model, deployment type, and date. Omitting `--pricing` still records tokens, but the corresponding cost estimate and cost-based plot are unavailable. The evaluator blocks live calls unless `--confirm-paid` is present.
+
+The supplied Global token rates used for this comparison are: o4-mini `$1.10` input, `$0.28` cached input, and `$4.40` output per million tokens; GPT-4.1-mini `$0.40`, `$0.10`, and `$1.60`; and GPT-5.2 `$1.75`, `$0.18`, and `$14.00`. Hosting is separate from these token charges.
 
 For each arm, the runner:
 
