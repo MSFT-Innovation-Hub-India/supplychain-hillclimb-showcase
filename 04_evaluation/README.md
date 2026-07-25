@@ -37,6 +37,19 @@ $$
 
 Teacher-medium beat the previous teacher package by 0.516 quality points and narrowly beat RFT by 0.018 points with a paired 95% confidence interval of `[0.003, 0.029]`. The teacher comparison also includes a strengthened prompt, so it does not isolate reasoning effort as the sole cause. RFT retains perfect feasibility and materially lower latency and cost than teacher-medium.
 
+## Hill-Climb Assessment
+
+![Supply-chain model step hill climb](results/step-hill-climb-20260725.png)
+
+The stepped assessment follows the actual optimization sequence:
+
+1. **GPT-5.2 teacher, no explicit reasoning:** latency was low at 4.54 seconds P50, but quality was only 0.335 and just 42.7% of plans were feasible. This established a fast but weak baseline.
+2. **GPT-4.1-mini SFT:** distilling the teacher into a smaller model reduced P50 latency to 4.18 seconds and token cost to `$0.00119` per scenario. Quality did not transfer successfully: it fell to 0.313 and feasibility fell to 38.7%. This was a cost optimization, not a quality improvement.
+3. **GPT-5.2 teacher with medium reasoning:** quality climbed to 0.851 and feasibility to 99.3%, demonstrating that the strengthened prompt and explicit reasoning solved the planning task. The trade-off was substantial: P50 latency rose to 66.68 seconds and token cost to `$0.09975` per scenario, the highest of all four packages.
+4. **o4-mini RFT with medium reasoning:** RFT reached 0.833 quality and 100% feasibility, closely matching the reasoning teacher while reducing P50 latency to 58.59 seconds and token cost to `$0.03101` per scenario. It is the strongest operational package in this experiment because it retains near-teacher quality with lower latency and roughly 69% lower token cost.
+
+The chart's composite success index weights quality at 70%, inverse token cost at 15%, and inverse P50 latency at 15%, after min-max normalization across the four measured packages. This produces scores of 32, 30, 70, and 80 respectively. The small SFT decline is intentional: its efficiency gains did not compensate for lower quality. The final RFT step is the hill-climb outcome, preserving nearly all of the teacher's quality while improving both operational dimensions. Green metrics improved from the previous stage; red metrics worsened.
+
 ## Run The Evaluation
 
 Review the current Azure pricing for each deployed model, then pass the input and output rates in USD per one million tokens. Add a third rate only when cached input has a different price.
@@ -116,12 +129,12 @@ The report's `hill_climb.points` array contains one compact record per arm with:
 Generate the visual after a complete multi-arm run:
 
 ```powershell
-.\.venv\Scripts\python.exe 04_evaluation/plot_hill_climb.py `
-  04_evaluation/results/evaluation-YYYYMMDD-HHMMSS.json `
-  --output 04_evaluation/results/hill-climb.png
+.\.venv\Scripts\python.exe 04_evaluation/plot_step_hill_climb.py `
+  04_evaluation/results/reasoning-hill-climb-20260725.json `
+  --output 04_evaluation/results/step-hill-climb-20260725.png
 ```
 
-The plot uses quality on the vertical axis, P50 latency on the horizontal axis, and bubble area for estimated cost per scenario. Arrows follow the `--arm` order. This preserves the competing dimensions rather than hiding them inside an arbitrary composite score: upward is better quality, leftward is lower latency, and a smaller bubble is lower cost.
+The presentation plot orders the packages as teacher baseline, SFT, reasoning teacher, and RFT. Its vertical axis is the documented composite success index; the model packages are on the horizontal axis. Each stage also shows the measured quality, P50 latency, and token cost so the weighting remains auditable.
 
 ## Decision Rules
 
@@ -143,4 +156,4 @@ The checked-in historical reports predate detailed telemetry. They contain promp
 | Teacher | 0.3465 | 43.3% | 138,086 | 71,746 |
 | RFT | 0.8259 | 98.0% | 138,086 | 952,141 |
 
-These runs show the quality difference and total token trade-off, but they are insufficient for the complete hill-climb plot. Rerun teacher, SFT, and RFT together with the instrumented evaluator and explicit pricing. If an older progress checkpoint is resumed, `telemetry_complete` remains false; remove that checkpoint and rerun the arm when complete latency and reasoning data are required.
+These runs show the quality difference and total token trade-off, but they are insufficient for the complete step hill-climb plot. Rerun teacher, SFT, and RFT together with the instrumented evaluator and explicit pricing. If an older progress checkpoint is resumed, `telemetry_complete` remains false; remove that checkpoint and rerun the arm when complete latency and reasoning data are required.
