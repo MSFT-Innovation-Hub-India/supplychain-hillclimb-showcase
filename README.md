@@ -1,28 +1,16 @@
-# Supply-Chain Allocation Recovery Showcase
+# Supply-Chain Order-Fulfillment Showcase
 
-This project explores how language models can create recovery plans for disrupted order fulfillment. Given affected orders and current warehouse conditions, a model selects the warehouse, SKU or approved substitute, quantity, and shipping mode for every order. Each plan is then validated and scored against operational constraints and business outcomes.
+This project showcases a language model hill-climbing approach to solving a supply-chain order-fulfillment problem.
+
+When a warehouse, carrier, or inventory source is disrupted, orders must be reassigned quickly without breaking customer commitments or operational limits. These decisions cannot be made one order at a time: reserving scarce inventory or fast shipping capacity for one order can prevent a higher-priority order from being fulfilled.
+
+The showcase explores how language models can create coordinated fulfillment plans when supply-chain operations are disrupted. Given affected orders and current warehouse conditions, a model selects the warehouse, SKU or approved substitute, quantity, and shipping mode for every order. Each plan is then validated and scored against operational constraints and business outcomes.
+
+The next section describes the business scenario in more detail.
 
 ## Business Scenario
 
-When a warehouse, carrier, or inventory source is disrupted, orders must be reassigned quickly without breaking customer commitments or operational limits. Decisions cannot be made one order at a time: reserving scarce inventory or fast capacity for one order can prevent a higher-priority order from being fulfilled.
-
-## Enterprise Inputs
-
-In production, an upstream process would detect at-risk orders from an OMS event or order file and query dependent systems:
-
-| System | Required data |
-|---|---|
-| OMS | Orders, quantities, deadlines, priority, margin |
-| WMS | Warehouse status, inventory, shipment capacity |
-| TMS | Transit times, shipping modes, freight costs |
-| Product/SLA systems | Approved substitutes, customer commitments |
-| Finance | Expedite budget |
-
-These integrations are not implemented here; the project generates equivalent scenario data.
-
-## Sample Planning Data
-
-An upstream pipeline would start with the affected orders, retrieve related data from the systems above, and assemble a planning snapshot like this:
+These are the orders that need to be fulfilled. (Only 3 records in the dataset are shown here for clarity)
 
 **Orders**
 
@@ -32,6 +20,9 @@ An upstream pipeline would start with the affected orders, retrieve related data
 | O2 | B / 1 | Medium | 18 hrs | B2 |
 | O3 | C / 1 | Low | 30 hrs | None |
 
+
+The following is the supporting data for the warehouses that can fulfill these orders. (Only two warehouses and three SKUs are shown here for clarity)
+
 **Supporting data**
 
 | Warehouse | Relevant stock | Capacity | Standard | Expedite |
@@ -39,11 +30,13 @@ An upstream pipeline would start with the affected orders, retrieve related data
 | W1 | A: 2, B: 2, C: 1 | 3 | 30 hrs / $5 | 8 hrs / $15 |
 | W2 | A: 4, B: 4, C: 4 | 5 | 18 hrs / $9 | 16 hrs / $17 |
 
-Expedite budget: **$45**.
+The budget available to expedite orders is limited. The model must choose which orders to expedite, if any, while staying within the budget. In this scenario, the total available expedite budget is:
+**$45**.
 
-The planning engine must coordinate stock and capacity across warehouses, use alternates only when approved, and choose another warehouse or defer when one location cannot fulfill an order in full. It must also balance priority, deadline, transit time, delivery mode, margin, and cost without exceeding the expedite budget.
+The model must produce one coordinated plan for all orders. For each order, it can select a warehouse, use an approved substitute, choose standard or expedited shipping, or defer fulfillment. A plan is rejected if it breaks a hard rule such as an inventory, capacity, substitution, quantity, or expedite-budget limit. Each valid plan then receives a weighted score for on-time service (55%), retained margin (25%), and shipping-cost efficiency (20%). The goal is to produce a valid plan with the highest possible total score.
 
-**Resulting recovery plan**
+**Resulting fulfillment plan**
+Here is a plausible plan that meets all constraints and fulfills every order on time.
 
 | Order | Decision | Why |
 |---|---|---|
@@ -51,26 +44,20 @@ The planning engine must coordinate stock and capacity across warehouses, use al
 | O2 | W2, SKU B, standard | W2 meets the tighter 18-hour deadline without expedite |
 | O3 | W1, SKU C, standard | The 30-hour deadline allows the lower-cost warehouse |
 
-The engine first eliminates options that fail inventory, capacity, quantity, substitution, deadline, or budget checks. It then compares the feasible plans, reserves fast capacity for constrained orders, and selects the lowest-cost plan that preserves service and margin. This plan fulfills all orders on time for **$41**, with no substitute or expedite spend.
-
-## Planning Flow
-
-1. Detect orders at risk.
-2. Gather and reconcile current operational data.
-3. Ask the model for one coordinated order-fulfillment recovery plan.
-4. Validate inventory, capacity, quantity, substitution, timing, and budget constraints.
-5. Score feasible plans on service, retained margin, and shipping cost.
+In this example, the model assigns each order to an option that has enough stock and capacity while meeting its deadline. The resulting plan passes all hard checks and fulfills every order on time for **$41**, without using a substitute or expedited shipping.
 
 ## Why It Is Difficult
 
-Many plans may be feasible, but only some use scarce inventory, capacity, and expedite budget effectively. The number of combinations grows across orders, warehouses, SKUs, substitutes, and shipping modes, and every decision affects what remains available to other orders.
+The model must consider many possible combinations of orders, warehouses, SKUs, substitutes, and shipping modes. These choices are interdependent: using scarce inventory, warehouse capacity, or expedite budget for one order changes what remains available for every other order. Many plans may be valid, but their service, margin, and cost scores can differ significantly.
 
 ## Approach To The Solution
 
-An optimization solver would typically be used for this problem. This showcase instead considers how far a language model can address it. The starting point was a general-purpose LLM supplied with the domain rules, required output schema, hard constraints, and business objective in its instructions. Every generated plan was measured on three dimensions:
+Enterprises would typically use a mathematical optimization solver to search this decision space and maximize a defined business objective. This showcase asks a different question: how close can a language model get to producing a high-quality solution?
+
+The experiment starts with a general-purpose LLM given the domain rules, required output format, hard constraints, and weighted scoring objective. It then hill-climbs the model package by testing different models, prompts, reasoning settings, and fine-tuning methods. Each package is evaluated on three dimensions:
 
 - **Quality:** feasibility, priority-weighted on-time service, retained margin, and shipping-cost efficiency.
-- **Latency:** end-to-end time required to produce one complete recovery plan.
+- **Latency:** end-to-end time required to produce one complete fulfillment plan.
 - **Cost:** model input, output, and reasoning-token charges, with fine-tuned hosting reported separately.
 
 ### Hill-Climbing The Model Package
@@ -86,7 +73,7 @@ Microsoft Foundry's model support constrained the available choices: at the time
 
 ### Why RFT Used A Grader
 
-There can be several valid recovery plans for one disruption, so forcing the model to reproduce one teacher answer would discard other good strategies. The grader instead evaluates the outcome. It first enforces all hard constraints: malformed plans, missing or duplicate orders, unavailable warehouses, incorrect quantities, prohibited substitutes, exhausted inventory or capacity, invalid shipping modes, and excess expedite spend receive zero reward. A feasible plan then receives continuous credit:
+There can be several valid fulfillment plans for one disruption, so forcing the model to reproduce one teacher answer would discard other good strategies. The grader instead evaluates the outcome. It first enforces all hard constraints: malformed plans, missing or duplicate orders, unavailable warehouses, incorrect quantities, prohibited substitutes, exhausted inventory or capacity, invalid shipping modes, and excess expedite spend receive zero reward. A feasible plan then receives continuous credit:
 
 $$
 Q = 0.55S + 0.25M + 0.20C_e
