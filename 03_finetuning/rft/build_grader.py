@@ -1,3 +1,5 @@
+"""Build the Foundry RFT grader artifact from the canonical local scorer."""
+
 from __future__ import annotations
 
 import inspect

@@ -1,3 +1,5 @@
+"""Translate deterministic validation results into model revision feedback."""
+
 from __future__ import annotations
 
 import json
@@ -6,6 +8,7 @@ from typing import Any
 
 
 def revision_feedback(plan: Any, scenario: dict[str, Any], result: dict[str, Any]) -> str:
+    """Describe plan violations and request a complete, improved replacement."""
     warehouses = {warehouse["warehouse_id"]: warehouse for warehouse in scenario["warehouses"]}
     inventory_used: dict[tuple[str, str], int] = defaultdict(int)
     capacity_used: dict[str, int] = defaultdict(int)

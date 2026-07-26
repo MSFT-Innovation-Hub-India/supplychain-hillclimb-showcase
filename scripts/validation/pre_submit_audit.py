@@ -1,3 +1,5 @@
+"""Audit environment, datasets, grader, and split integrity before RFT submission."""
+
 from __future__ import annotations
 
 import hashlib
@@ -5,7 +7,11 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import sys
 from urllib.parse import urlparse
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
 
 from dotenv import load_dotenv
 
@@ -14,7 +20,6 @@ from common.prompts import SYSTEM_PROMPT, scenario_message
 from common.scenario import generate_scenario, generate_split
 from common.scoring import score_plan
 
-ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "02_dataset_build" / "data"
 CAPTURE = ROOT / "01_baseline_teacher" / "traces" / "training.jsonl"
 PILOT_GATE = ROOT / "01_baseline_teacher" / "traces" / "pilot_gate.json"

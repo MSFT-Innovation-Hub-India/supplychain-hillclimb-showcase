@@ -1,3 +1,5 @@
+"""Deterministic synthetic supply-chain scenario generation."""
+
 from __future__ import annotations
 
 import random
@@ -8,6 +10,7 @@ SUBSTITUTES = {"A": "A2", "A2": "A", "B": "B2", "B2": "B", "C": None, "D": None}
 
 
 def generate_scenario(seed: int, family: str = "mixed") -> dict[str, Any]:
+    """Generate one reproducible scenario at the requested pressure level."""
     rng = random.Random(seed)
     warehouses = []
     disrupted_index = seed % 3
@@ -54,4 +57,5 @@ def generate_scenario(seed: int, family: str = "mixed") -> dict[str, Any]:
 
 
 def generate_split(start_seed: int, count: int, families: tuple[str, ...] = ("loose", "mixed", "tight")) -> list[dict[str, Any]]:
+    """Generate a deterministic split cycling through the supplied families."""
     return [generate_scenario(start_seed + index, families[index % len(families)]) for index in range(count)]

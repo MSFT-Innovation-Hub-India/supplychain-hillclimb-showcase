@@ -1,3 +1,5 @@
+"""Model instructions and scenario-message serialization."""
+
 import json
 from typing import Any
 
@@ -34,4 +36,5 @@ Return only the audited best feasible plan."""
 
 
 def scenario_message(scenario: dict[str, Any]) -> str:
+    """Serialize a scenario into the user message expected by the model."""
     return "Produce the best feasible allocation plan for this scenario:\n" + json.dumps(scenario, separators=(",", ":"), sort_keys=True)

@@ -1,3 +1,5 @@
+"""Evaluate model packages on paired held-out scenarios and summarize results."""
+
 from __future__ import annotations
 
 import argparse

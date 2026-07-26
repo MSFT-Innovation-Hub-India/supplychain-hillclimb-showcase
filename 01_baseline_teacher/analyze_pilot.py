@@ -1,3 +1,5 @@
+"""Analyze captured pilot traces and write the go/no-go gate artifact."""
+
 from __future__ import annotations
 
 import json

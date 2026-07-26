@@ -114,5 +114,5 @@ For this showcase, GitHub Copilot agent mode in Visual Studio Code was used to p
 - [Dataset build](02_dataset_build/README.md): conversion of teacher traces into SFT and RFT fine-tuning datasets.
 - [Fine-tuning](03_finetuning/README.md): managed SFT/RFT submission, monitoring, and model deployment.
 - [Held-out evaluation](04_evaluation/README.md): paired quality, token cost, latency, and hill-climb comparison.
-- [Experiment runbook](RUNBOOK.txt): dataset generation, fine-tuning, deployment, and evaluation.
+- [Experiment runbook](RUNBOOK.md): step-by-step setup, dataset generation, fine-tuning, deployment, and evaluation commands.
 - [Comparison application](model_comparison_app/README.md): run the interactive SFT, RFT, and teacher comparison.

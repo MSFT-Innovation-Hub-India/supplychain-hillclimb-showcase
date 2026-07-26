@@ -51,7 +51,7 @@ Both submission scripts require:
 
 RFT optimizes the reward returned by the grader. A job can therefore complete successfully while learning the wrong behavior if the grader is stale, the prompt and scenarios disagree, data splits overlap, or the reward has too little useful variation. Because training is managed and billable, these mistakes should be rejected before any files are uploaded or a job is created.
 
-[pre_submit_audit.py](../pre_submit_audit.py) validates the local inputs to the RFT request:
+[pre_submit_audit.py](../scripts/validation/pre_submit_audit.py) validates the local inputs to the RFT request:
 
 - **Datasets:** exact row structure and counts, unique scenario IDs, and no overlap among training, validation, and final evaluation scenarios.
 - **Prompt alignment:** each model-visible scenario matches the structured scenario supplied privately to the grader.
@@ -271,7 +271,7 @@ Rebuild the grader after changing [common/scoring.py](../common/scoring.py), the
 
 ```powershell
 .\.venv\Scripts\python.exe 03_finetuning/rft/build_grader.py
-.\.venv\Scripts\python.exe pre_submit_audit.py
+.\.venv\Scripts\python.exe scripts\validation\pre_submit_audit.py
 .\.venv\Scripts\python.exe 03_finetuning/rft/submit_rft_job.py --confirm-paid
 ```
 
@@ -303,4 +303,4 @@ Deploy SFT and RFT under distinct names. These deployment names, not the fine-tu
 
 Training-time validation is used to observe the managed job; it is not the final SFT-versus-RFT comparison. After both models are deployed, [04_evaluation/evaluate.py](../04_evaluation/evaluate.py) runs them and the teacher on the same 150 separately generated, held-out scenarios.
 
-See the [runbook](../RUNBOOK.txt) for the end-to-end command sequence.
+See the [runbook](../RUNBOOK.md) for the end-to-end command sequence.

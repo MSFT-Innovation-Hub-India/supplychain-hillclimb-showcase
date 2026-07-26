@@ -1,3 +1,5 @@
+"""Validate inputs and submit the grader-based RFT job to Azure."""
+
 from __future__ import annotations
 
 import argparse
@@ -10,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from common.fine_tuning_api import FineTuningClient, require_paid_confirmation, require_pilot_gate
-from pre_submit_audit import main as run_pre_submit_audit
+from scripts.validation.pre_submit_audit import main as run_pre_submit_audit
 
 DATA = ROOT / "02_dataset_build" / "data"
 GRADER = Path(__file__).resolve().parent / "grader.json"

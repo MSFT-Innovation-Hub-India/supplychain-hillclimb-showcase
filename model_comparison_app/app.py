@@ -1,3 +1,5 @@
+"""Streamlit application for comparing teacher, SFT, and RFT plans."""
+
 from __future__ import annotations
 
 import json

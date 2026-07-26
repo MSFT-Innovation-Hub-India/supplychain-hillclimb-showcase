@@ -227,4 +227,4 @@ The repository does not implement the training or validation loop itself. It pre
 3. Upload the RFT train/validation files with the grader and response schema to the reinforcement fine-tuning job.
 4. Deploy the completed models and evaluate them on the same held-out scenarios.
 
-Fine-tuning is implemented under [03_finetuning](../03_finetuning/); commands and safeguards are listed in the [runbook](../RUNBOOK.txt).
+Fine-tuning is implemented under [03_finetuning](../03_finetuning/); commands and safeguards are listed in the [runbook](../RUNBOOK.md).

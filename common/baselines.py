@@ -1,3 +1,5 @@
+"""Deterministic reference planners used to assess scenario difficulty."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -5,10 +7,12 @@ from typing import Any
 
 
 def defer_all(scenario: dict[str, Any]) -> dict[str, Any]:
+    """Return a valid plan that defers every order in the scenario."""
     return {"decisions": [{"order_id": order["order_id"], "action": "defer"} for order in scenario["orders"]]}
 
 
 def greedy_plan(scenario: dict[str, Any], variant: str = "priority") -> dict[str, Any]:
+    """Build a feasible greedy plan ordered by priority or margin."""
     inventory = {w["warehouse_id"]: deepcopy(w["inventory"]) for w in scenario["warehouses"]}
     capacity = {w["warehouse_id"]: w["shipment_capacity"] for w in scenario["warehouses"]}
     warehouses = [w for w in scenario["warehouses"] if w["available"]]

@@ -1,3 +1,5 @@
+"""Azure OpenAI inference client and allocation-plan request helpers."""
+
 from __future__ import annotations
 
 import json
@@ -13,6 +15,7 @@ from common.prompts import SYSTEM_PROMPT, scenario_message
 
 
 def create_client() -> OpenAI:
+    """Create an authenticated Azure OpenAI client from environment settings."""
     load_dotenv(override=True)
     endpoint = os.environ["AZURE_OPENAI_ENDPOINT"].rstrip("/")
     if not endpoint.endswith("/openai/v1"):
@@ -29,6 +32,7 @@ def plan_messages(
     previous_plan: dict[str, Any] | None = None,
     feedback: str | None = None,
 ) -> list[dict[str, str]]:
+    """Build the initial or feedback-guided message sequence for a scenario."""
     messages = [
         {"role": "developer", "content": SYSTEM_PROMPT},
         {"role": "user", "content": scenario_message(scenario)},
@@ -51,6 +55,7 @@ def request_plan(
     feedback: str | None = None,
     reasoning_effort: str | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, int | float]]:
+    """Request a plan and return parsed JSON plus token and latency metrics."""
     started = time.perf_counter()
     request: dict[str, Any] = {
         "model": deployment,

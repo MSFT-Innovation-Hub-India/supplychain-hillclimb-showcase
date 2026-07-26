@@ -1,3 +1,5 @@
+"""Plot the measured quality, cost, and latency model-package hill climb."""
+
 from __future__ import annotations
 
 import argparse

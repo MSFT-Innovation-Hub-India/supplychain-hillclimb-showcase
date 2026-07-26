@@ -1,8 +1,15 @@
+"""Check scenario and reward suitability before paid model experiments."""
+
 from __future__ import annotations
 
 import argparse
 import json
 import statistics
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
 
 from common.baselines import defer_all, greedy_plan
 from common.scenario import generate_split

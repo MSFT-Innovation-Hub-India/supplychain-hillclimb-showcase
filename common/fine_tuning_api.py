@@ -1,3 +1,5 @@
+"""Minimal client and safety gates for Azure fine-tuning operations."""
+
 from __future__ import annotations
 
 import json
@@ -14,7 +16,10 @@ API_VERSION = "2025-04-01-preview"
 
 
 class FineTuningClient:
+    """Call the Azure fine-tuning management API with Entra authentication."""
+
     def __init__(self) -> None:
+        """Initialize the endpoint, credential, and token cache."""
         load_dotenv(override=True)
         self.endpoint = os.environ["AZURE_OPENAI_ENDPOINT"].rstrip("/")
         if self.endpoint.endswith("/openai/v1"):
@@ -23,12 +28,14 @@ class FineTuningClient:
         self._token: tuple[str, int] | None = None
 
     def headers(self) -> dict[str, str]:
+        """Return authorization headers, refreshing the cached token if needed."""
         if self._token is None or self._token[1] - time.time() <= 300:
             token = self.credential.get_token("https://cognitiveservices.azure.com/.default")
             self._token = (token.token, token.expires_on)
         return {"Authorization": f"Bearer {self._token[0]}"}
 
     def upload(self, path: Path) -> str:
+        """Upload a training file, wait for processing, and return its file ID."""
         with path.open("rb") as stream:
             response = httpx.post(
                 f"{self.endpoint}/openai/files?api-version={API_VERSION}",
@@ -52,6 +59,7 @@ class FineTuningClient:
         raise TimeoutError(f"file {file_id} was not processed within two minutes")
 
     def create_job(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Create a fine-tuning job from an API request body."""
         response = httpx.post(
             f"{self.endpoint}/openai/fine_tuning/jobs?api-version={API_VERSION}",
             headers={**self.headers(), "Content-Type": "application/json"},
@@ -61,6 +69,7 @@ class FineTuningClient:
         return response.json()
 
     def cancel_job(self, job_id: str) -> dict[str, Any]:
+        """Cancel a fine-tuning job and return the API response."""
         response = httpx.post(
             f"{self.endpoint}/openai/fine_tuning/jobs/{job_id}/cancel?api-version={API_VERSION}",
             headers=self.headers(), timeout=30,
@@ -69,6 +78,7 @@ class FineTuningClient:
         return response.json()
 
     def list_jobs(self) -> list[dict[str, Any]]:
+        """Return the fine-tuning jobs visible to the configured resource."""
         response = httpx.get(
             f"{self.endpoint}/openai/fine_tuning/jobs?api-version={API_VERSION}",
             headers=self.headers(), timeout=30,
@@ -77,6 +87,7 @@ class FineTuningClient:
         return response.json().get("data", [])
 
     def require_no_active_job(self, model: str, suffix: str, method_type: str) -> None:
+        """Block submission when an equivalent active job already exists."""
         active_statuses = {"pending", "queued", "running", "validating_files"}
         matches = []
         for job in self.list_jobs():
@@ -93,6 +104,7 @@ class FineTuningClient:
             raise SystemExit(f"matching active fine-tuning job already exists; submission blocked: {matches}")
 
     def poll_job(self, job_id: str) -> dict[str, Any]:
+        """Poll a job until it reaches a terminal state and return its details."""
         while True:
             response = httpx.get(
                 f"{self.endpoint}/openai/fine_tuning/jobs/{job_id}?api-version={API_VERSION}",
@@ -107,6 +119,7 @@ class FineTuningClient:
 
 
 def require_pilot_gate(root: Path) -> None:
+    """Block paid training unless the saved pilot gate exists and passed."""
     path = root / "01_baseline_teacher" / "traces" / "pilot_gate.json"
     if not path.exists():
         raise SystemExit("pilot gate is missing; run capture_pilot.py and analyze_pilot.py first")
@@ -116,5 +129,6 @@ def require_pilot_gate(root: Path) -> None:
 
 
 def require_paid_confirmation(confirmed: bool) -> None:
+    """Require explicit command-line acknowledgement before a paid operation."""
     if not confirmed:
         raise SystemExit("paid Azure operation blocked; rerun with --confirm-paid after reviewing the pilot and cost")

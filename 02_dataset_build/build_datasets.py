@@ -1,3 +1,5 @@
+"""Transform captured teacher traces into deterministic SFT and RFT datasets."""
+
 from __future__ import annotations
 
 import json

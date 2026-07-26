@@ -1,3 +1,5 @@
+"""Capture execution-filtered teacher traces for dataset construction."""
+
 from __future__ import annotations
 
 import argparse

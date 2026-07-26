@@ -1,3 +1,5 @@
+"""Deterministic feasibility validation and weighted plan scoring."""
+
 from __future__ import annotations
 
 from collections import Counter, defaultdict
@@ -9,6 +11,7 @@ def _failure(reason: str, category: str) -> dict[str, Any]:
 
 
 def score_plan(plan: Any, scenario: dict[str, Any]) -> dict[str, Any]:
+    """Validate a complete plan and return feasibility, score, and metrics."""
     if not isinstance(plan, dict) or set(plan) != {"decisions"} or not isinstance(plan["decisions"], list):
         return _failure("plan must contain only a decisions array", "schema")
 
