@@ -124,7 +124,7 @@ VERIFIED_RESULTS = {
         },
         "usage": {"prompt_tokens": 0, "completion_tokens": 0},
         "seconds": 8.4,
-        "source": "Verified feasible live run",
+        "source": "Recorded from original deployment",
     },
     "Reinforcement fine-tuned (RFT)": {
         "plan": {
@@ -157,7 +157,7 @@ VERIFIED_RESULTS = {
         },
         "usage": {"prompt_tokens": 0, "completion_tokens": 0},
         "seconds": 14.0,
-        "source": "Verified feasible live run",
+        "source": "Recorded from original deployment",
     },
 }
 
@@ -262,7 +262,16 @@ if "results" not in st.session_state:
     st.session_state.results = initial_results()
 
 
-def run_model(model_name: str) -> None:
+def run_model(model_name: str, replay: bool = False) -> None:
+    if replay:
+        record = VERIFIED_RESULTS[model_name]
+        st.session_state.results[model_name] = {
+            **record,
+            "result": score_plan(record["plan"], SCENARIO),
+            "source": "Recorded verified run · replayed locally",
+        }
+        return
+
     config = MODEL_OPTIONS[model_name]
     started = time.perf_counter()
     plan, usage = request_plan(create_client(), config["deployment"], SCENARIO)
@@ -407,8 +416,9 @@ def rationale_for(model_name: str, record: dict[str, Any]) -> list[str]:
 def render_result(model_name: str) -> None:
     config = MODEL_OPTIONS[model_name]
     st.subheader(config["short"])
-    st.caption(f"{config['deployment']} · {config['description']}")
     record = st.session_state.results.get(model_name)
+    deployment_label = "Original deployment" if replay_mode else "Deployment"
+    st.caption(f"{deployment_label}: {config['deployment']} · {config['description']}")
     if not record:
         st.info("No run is loaded for this model. Select Run model to generate one.")
         return
@@ -444,8 +454,18 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+execution_mode = st.radio(
+    "Execution mode",
+    ["Recorded replay", "Live Azure"],
+    horizontal=True,
+    help="Recorded replay uses captured model outputs and runs the grader locally. Live Azure requires active deployments.",
+)
+replay_mode = execution_mode == "Recorded replay"
+if replay_mode:
+    st.info("Demo-safe replay is active. No Azure deployment, credentials, or network call is required.")
+
 selector_left, selector_right, run_column = st.columns([1, 1, 0.7], vertical_alignment="bottom")
-model_names = list(MODEL_OPTIONS)
+model_names = list(VERIFIED_RESULTS) if replay_mode else list(MODEL_OPTIONS)
 with selector_left:
     left_model = st.selectbox("Left model", model_names, index=0)
 with selector_right:
@@ -453,21 +473,22 @@ with selector_right:
     default_right = "Reinforcement fine-tuned (RFT)" if "Reinforcement fine-tuned (RFT)" in right_candidates else right_candidates[0]
     right_model = st.selectbox("Right model", right_candidates, index=right_candidates.index(default_right))
 with run_column:
-    run_both = st.button("Run both models", type="primary", use_container_width=True, icon=":material/play_arrow:")
+    action = "Replay" if replay_mode else "Run"
+    run_both = st.button(f"{action} both models", type="primary", use_container_width=True, icon=":material/play_arrow:")
 
 left_action, right_action = st.columns(2)
 with left_action:
-    run_left = st.button(f"Run {MODEL_OPTIONS[left_model]['short']}", use_container_width=True, key="run_left")
+    run_left = st.button(f"{action} {MODEL_OPTIONS[left_model]['short']}", use_container_width=True, key="run_left")
 with right_action:
-    run_right = st.button(f"Run {MODEL_OPTIONS[right_model]['short']}", use_container_width=True, key="run_right")
+    run_right = st.button(f"{action} {MODEL_OPTIONS[right_model]['short']}", use_container_width=True, key="run_right")
 
 try:
     if run_both or run_left:
-        with st.spinner(f"Running {MODEL_OPTIONS[left_model]['short']}..."):
-            run_model(left_model)
+        with st.spinner(f"{action}ing {MODEL_OPTIONS[left_model]['short']}..."):
+            run_model(left_model, replay=replay_mode)
     if run_both or run_right:
-        with st.spinner(f"Running {MODEL_OPTIONS[right_model]['short']}..."):
-            run_model(right_model)
+        with st.spinner(f"{action}ing {MODEL_OPTIONS[right_model]['short']}..."):
+            run_model(right_model, replay=replay_mode)
 except Exception as error:
     st.error(f"Model call failed: {type(error).__name__}: {error}")
 
@@ -561,4 +582,4 @@ with st.expander("Grader contract"):
         "- Deferring everything is feasible but earns zero, preventing shortcut behavior."
     )
 
-st.caption("Live model output can vary. The initial SFT/RFT panes show a verified run captured from these deployments on this exact scenario; use the controls above to rerun either model.")
+st.caption("Recorded replay uses verified outputs captured from the original deployments on this exact scenario and recomputes all grader metrics locally. Live model output can vary and requires active Azure deployments.")

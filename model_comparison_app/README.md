@@ -1,6 +1,6 @@
 # Allocation Recovery Lab
 
-Streamlit client for comparing any two of the SFT, RFT, and teacher deployments on one fixed three-order supply-chain recovery scenario.
+Streamlit client for comparing SFT and RFT on one fixed three-order supply-chain recovery scenario. The app includes the exact scenario and verified outputs captured from the original deployments, so it can be demonstrated after those deployments are deleted.
 
 ## Run
 
@@ -10,4 +10,13 @@ From the repository root:
 python -m streamlit run model_comparison_app/app.py
 ```
 
-The app reads Azure endpoint configuration from the repository `.env` and authenticates with `DefaultAzureCredential`. The initial SFT and RFT panes contain a verified live run; use the model controls to generate fresh results.
+Open the displayed local URL and leave **Execution mode** set to **Recorded replay**. Use **Replay both models** while recording. Replay mode:
+
+- requires no Azure deployment, credentials, or network access;
+- loads the captured SFT and RFT plans for the displayed scenario;
+- recomputes reward, feasibility, constraints, and business rationale with the repository grader;
+- retains the original measured inference latency as historical context.
+
+**Live Azure** remains available for future deployments. It reads endpoint configuration from the repository `.env`, authenticates with `DefaultAzureCredential`, and requires the deployment names in `MODEL_OPTIONS` to exist.
+
+The full historical evaluation data is retained under `04_evaluation/results/`. `evaluation-20260724-225229.json` contains teacher, SFT, and RFT results over 150 held-out scenarios; the UI intentionally uses one concise scenario for an understandable side-by-side recording.
