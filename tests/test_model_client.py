@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from common.model_client import create_client, plan_messages, request_plan
-from common.prompts import SYSTEM_PROMPT, scenario_message
+from common.prompts import FINE_TUNED_SYSTEM_PROMPT, SYSTEM_PROMPT, scenario_message
 from common.scenario import generate_scenario
 
 
@@ -25,6 +25,12 @@ def test_plan_messages_adds_prior_plan_and_validator_feedback_for_revision():
     assert messages[3]["content"] == "Validator feedback"
 
 
+def test_plan_messages_accepts_the_fine_tuned_prompt_contract():
+    scenario = generate_scenario(123)
+    messages = plan_messages(scenario, system_prompt=FINE_TUNED_SYSTEM_PROMPT)
+    assert messages[0] == {"role": "developer", "content": FINE_TUNED_SYSTEM_PROMPT}
+
+
 def test_request_plan_passes_explicit_reasoning_effort():
     captured = {}
 
@@ -39,6 +45,22 @@ def test_request_plan_passes_explicit_reasoning_effort():
     client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
     request_plan(client, "teacher", generate_scenario(123), reasoning_effort="high")
     assert captured["reasoning_effort"] == "high"
+
+
+def test_request_plan_passes_the_selected_system_prompt():
+    captured = {}
+
+    class Completions:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content='{"decisions":[]}'))],
+                usage=None,
+            )
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+    request_plan(client, "sft", generate_scenario(123), system_prompt=FINE_TUNED_SYSTEM_PROMPT)
+    assert captured["messages"][0]["content"] == FINE_TUNED_SYSTEM_PROMPT
 
 
 def test_create_client_uses_configurable_long_timeout_for_reasoning_calls():

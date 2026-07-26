@@ -1,4 +1,9 @@
-from common.prompts import SYSTEM_PROMPT, scenario_message
+from common.prompts import (
+    DETAILED_FINE_TUNING_SYSTEM_PROMPT,
+    FINE_TUNED_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+    scenario_message,
+)
 from common.scenario import generate_scenario
 
 
@@ -13,6 +18,16 @@ def test_system_prompt_matches_the_scoring_and_feasibility_contract():
         "one violation makes the entire plan score zero",
     )
     assert all(requirement in SYSTEM_PROMPT for requirement in required_contract)
+
+
+def test_fine_tuned_prompt_is_the_thin_v1_inference_contract():
+    assert "Business rules:" not in FINE_TUNED_SYSTEM_PROMPT
+    assert "Hill-climb the complete plan" not in FINE_TUNED_SYSTEM_PROMPT
+    assert "Respect inventory, shipment capacity, deadlines, and the expedite budget." in FINE_TUNED_SYSTEM_PROMPT
+
+
+def test_detailed_fine_tuning_prompt_matches_the_current_dataset_contract():
+    assert "Business rules:" in DETAILED_FINE_TUNING_SYSTEM_PROMPT
 
 
 def test_scenario_message_is_deterministic_and_contains_the_complete_scenario():

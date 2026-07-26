@@ -98,3 +98,14 @@ def test_reasoning_parser_rejects_unknown_effort():
         assert "reasoning effort" in str(error)
     else:
         raise AssertionError("unknown reasoning effort was accepted")
+
+
+def test_prompt_package_parser_distinguishes_teacher_and_fine_tuned_contracts():
+    evaluation = load_evaluation_module()
+    assert evaluation.parse_prompt_packages(
+        ["teacher=teacher", "sft=detailed-fine-tuned", "rft=thin-fine-tuned"]
+    ) == {
+        "teacher": "teacher",
+        "sft": "detailed-fine-tuned",
+        "rft": "thin-fine-tuned",
+    }

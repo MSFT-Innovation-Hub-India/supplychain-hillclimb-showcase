@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from common.prompts import SYSTEM_PROMPT, scenario_message
+from common.prompts import DETAILED_FINE_TUNING_SYSTEM_PROMPT, scenario_message
 
 ROOT = Path(__file__).resolve().parents[1]
 INPUT = ROOT / "01_baseline_teacher" / "traces" / "training.jsonl"
@@ -18,7 +18,7 @@ OUTPUT = Path(__file__).resolve().parent / "data"
 def rft_row(row: dict) -> dict:
     return {
         "messages": [
-            {"role": "developer", "content": SYSTEM_PROMPT},
+            {"role": "developer", "content": DETAILED_FINE_TUNING_SYSTEM_PROMPT},
             {"role": "user", "content": scenario_message(row["scenario"])},
         ],
         "expected": {"scenario": row["scenario"]},
@@ -28,7 +28,7 @@ def rft_row(row: dict) -> dict:
 def sft_row(row: dict) -> dict:
     return {
         "messages": [
-            {"role": "developer", "content": SYSTEM_PROMPT},
+            {"role": "developer", "content": DETAILED_FINE_TUNING_SYSTEM_PROMPT},
             {"role": "user", "content": scenario_message(row["scenario"])},
             {"role": "assistant", "content": json.dumps(row["teacher"]["plan"], separators=(",", ":"))},
         ]

@@ -64,7 +64,7 @@ Run the following command for each completed fine-tuned model:
 Review the current Azure per-million-token rates for each deployment. Then evaluate the teacher, SFT, and RFT packages on the same 150 held-out scenarios:
 
 ```powershell
-.\.venv\Scripts\python.exe 04_evaluation\evaluate.py --arm teacher=TEACHER_DEPLOYMENT --arm sft=SFT_DEPLOYMENT --arm rft=RFT_DEPLOYMENT --pricing teacher=INPUT_RATE,OUTPUT_RATE,CACHED_INPUT_RATE --pricing sft=INPUT_RATE,OUTPUT_RATE,CACHED_INPUT_RATE --pricing rft=INPUT_RATE,OUTPUT_RATE,CACHED_INPUT_RATE --count 150 --compare rft,sft --confirm-paid
+.\.venv\Scripts\python.exe 04_evaluation\evaluate.py --arm teacher=TEACHER_DEPLOYMENT --arm sft=SFT_DEPLOYMENT --arm rft=RFT_DEPLOYMENT --prompt-package teacher=teacher --prompt-package sft=detailed-fine-tuned --prompt-package rft=thin-fine-tuned --pricing teacher=INPUT_RATE,OUTPUT_RATE,CACHED_INPUT_RATE --pricing sft=INPUT_RATE,OUTPUT_RATE,CACHED_INPUT_RATE --pricing rft=INPUT_RATE,OUTPUT_RATE,CACHED_INPUT_RATE --count 150 --compare rft,sft --confirm-paid
 ```
 
 Add `raw_rft` or `raw_sft` arms only when those exact raw deployments exist.

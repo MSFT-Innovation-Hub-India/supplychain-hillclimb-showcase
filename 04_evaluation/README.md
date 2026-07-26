@@ -52,6 +52,12 @@ The stepped assessment follows the actual optimization sequence:
 
 The chart's composite success index weights quality at 70%, inverse token cost at 15%, and inverse P50 latency at 15%, after min-max normalization across the four measured packages. This produces scores of 32, 30, 70, and 80 respectively. The small SFT decline is intentional: its efficiency gains did not compensate for lower quality. The final RFT step is the hill-climb outcome, preserving nearly all of the teacher's quality while improving both operational dimensions. Green metrics improved from the previous stage; red metrics worsened.
 
+### Historical prompt provenance
+
+The SFT-v2 job was trained with the detailed business-rules prompt; the RFT job was trained earlier with the thin v1 prompt. The published three-arm run in `evaluation-20260724-225229.json` predates explicit prompt-package routing and sent the then-current detailed business-rules prompt to teacher, SFT, and RFT alike. Its reported scores are valid for those exact model-plus-prompt packages, but the RFT score is not a thin-prompt inference result. The later teacher reasoning runs used the strengthened teacher prompt.
+
+The command below is intentionally different: it evaluates each fine-tuned deployment with the prompt used for its training run. Treat this as a new experiment configuration and write its output to a new result file; do not compare its numbers as though they came from the historical shared-prompt run.
+
 ## Run The Evaluation
 
 Review the current Azure pricing for each deployed model, then pass the input and output rates in USD per one million tokens. Add a third rate only when cached input has a different price.
@@ -61,6 +67,9 @@ Review the current Azure pricing for each deployed model, then pass the input an
   --arm teacher=TEACHER_DEPLOYMENT `
   --arm sft=SFT_DEPLOYMENT `
   --arm rft=RFT_DEPLOYMENT `
+  --prompt-package teacher=teacher `
+  --prompt-package sft=detailed-fine-tuned `
+  --prompt-package rft=thin-fine-tuned `
   --pricing teacher=TEACHER_INPUT_RATE,TEACHER_OUTPUT_RATE,TEACHER_CACHED_INPUT_RATE `
   --pricing sft=SFT_INPUT_RATE,SFT_OUTPUT_RATE,SFT_CACHED_INPUT_RATE `
   --pricing rft=RFT_INPUT_RATE,RFT_OUTPUT_RATE,RFT_CACHED_INPUT_RATE `
@@ -71,7 +80,7 @@ Review the current Azure pricing for each deployed model, then pass the input an
   --confirm-paid
 ```
 
-Pricing is explicit because Azure prices vary by model, deployment type, and date. Omitting `--pricing` still records tokens, but the corresponding cost estimate and cost-based plot are unavailable. The evaluator blocks live calls unless `--confirm-paid` is present.
+Prompt packages are explicit because the showcased SFT-v2 job used the detailed business-rules prompt, the RFT job used the earlier thin prompt, and the teacher uses the strengthened planning prompt. Pricing is explicit because Azure prices vary by model, deployment type, and date. Omitting `--pricing` still records tokens, but the corresponding cost estimate and cost-based plot are unavailable. The evaluator blocks live calls unless `--confirm-paid` is present.
 
 The supplied Global token rates used for this comparison are: o4-mini `$1.10` input, `$0.28` cached input, and `$4.40` output per million tokens; GPT-4.1-mini `$0.40`, `$0.10`, and `$1.60`; and GPT-5.2 `$1.75`, `$0.18`, and `$14.00`. Hosting is separate from these token charges.
 

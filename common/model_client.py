@@ -11,7 +11,7 @@ from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from common.prompts import SYSTEM_PROMPT, scenario_message
+from common.prompts import TEACHER_SYSTEM_PROMPT, scenario_message
 
 
 def create_client() -> OpenAI:
@@ -31,10 +31,11 @@ def plan_messages(
     scenario: dict[str, Any],
     previous_plan: dict[str, Any] | None = None,
     feedback: str | None = None,
+    system_prompt: str = TEACHER_SYSTEM_PROMPT,
 ) -> list[dict[str, str]]:
     """Build the initial or feedback-guided message sequence for a scenario."""
     messages = [
-        {"role": "developer", "content": SYSTEM_PROMPT},
+        {"role": "developer", "content": system_prompt},
         {"role": "user", "content": scenario_message(scenario)},
     ]
     if previous_plan is not None and feedback is not None:
@@ -54,12 +55,13 @@ def request_plan(
     previous_plan: dict[str, Any] | None = None,
     feedback: str | None = None,
     reasoning_effort: str | None = None,
+    system_prompt: str = TEACHER_SYSTEM_PROMPT,
 ) -> tuple[dict[str, Any] | None, dict[str, int | float]]:
     """Request a plan and return parsed JSON plus token and latency metrics."""
     started = time.perf_counter()
     request: dict[str, Any] = {
         "model": deployment,
-        "messages": plan_messages(scenario, previous_plan, feedback),
+        "messages": plan_messages(scenario, previous_plan, feedback, system_prompt),
         "response_format": {"type": "json_object"},
     }
     if reasoning_effort is not None:

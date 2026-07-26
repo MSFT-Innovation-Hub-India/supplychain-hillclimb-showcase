@@ -31,3 +31,5 @@ Set `AZURE_OPENAI_ENDPOINT`, `SFT_DEPLOYMENT`, `RFT_DEPLOYMENT`, and `TEACHER_DE
 The app authenticates with `DefaultAzureCredential`; `.env` contains configuration, not credentials. It is ignored by Git because its values are machine- and resource-specific. Leave **Execution mode** set to **Recorded replay** when these Azure resources are unavailable.
 
 The published evaluation data is retained under [`04_evaluation/results/`](../04_evaluation/results/README.md), with superseded and exploratory runs documented in its `archive` subfolder. `evaluation-20260724-225229.json` contains teacher, SFT, and RFT results over 150 held-out scenarios. The app does not load that file; it intentionally uses one embedded scenario and its recorded outputs for an understandable side-by-side demonstration.
+
+The replay artifact retained plans and latency, but not the original request messages. The prompt panel therefore shows training provenance, not an asserted replay request: SFT-v2 was trained with the detailed business-rules prompt and RFT-v1 with the thin prompt. In Live Azure mode, those displayed prompts are the prompts actually sent.

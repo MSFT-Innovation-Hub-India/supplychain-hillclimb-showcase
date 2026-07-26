@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv
 
 from common.baselines import defer_all, greedy_plan
-from common.prompts import SYSTEM_PROMPT, scenario_message
+from common.prompts import DETAILED_FINE_TUNING_SYSTEM_PROMPT, scenario_message
 from common.scenario import generate_scenario, generate_split
 from common.scoring import score_plan
 
@@ -58,7 +58,7 @@ def audit_dataset(path: Path, expected_count: int) -> tuple[list[dict], set[str]
         check([message.get("role") for message in row["messages"]] == ["developer", "user"], f"{path.name}:{index} must not contain an assistant answer")
         scenario = row["expected"].get("scenario")
         check(isinstance(scenario, dict), f"{path.name}:{index} is missing expected.scenario")
-        check(row["messages"][0].get("content") == SYSTEM_PROMPT, f"{path.name}:{index} has a stale developer prompt")
+        check(row["messages"][0].get("content") == DETAILED_FINE_TUNING_SYSTEM_PROMPT, f"{path.name}:{index} has a stale developer prompt")
         check(row["messages"][1].get("content") == scenario_message(scenario), f"{path.name}:{index} scenario/prompt mismatch")
         scenario_id = scenario.get("scenario_id")
         check(isinstance(scenario_id, str) and scenario_id not in scenario_ids, f"{path.name}:{index} has a duplicate or invalid scenario_id")
@@ -93,7 +93,7 @@ def main() -> int:
     evaluation_ids = {scenario["scenario_id"] for scenario in generate_split(50_000, 150, ("tight", "mixed", "loose"))}
     check(train_ids.isdisjoint(evaluation_ids) and valid_ids.isdisjoint(evaluation_ids), "training data overlaps held-out evaluation scenarios")
 
-    check('"warehouse_id":"W1"' not in SYSTEM_PROMPT and '"sku":"A"' not in SYSTEM_PROMPT, "developer prompt contains literal warehouse or SKU examples")
+    check('"warehouse_id":"W1"' not in DETAILED_FINE_TUNING_SYSTEM_PROMPT and '"sku":"A"' not in DETAILED_FINE_TUNING_SYSTEM_PROMPT, "developer prompt contains literal warehouse or SKU examples")
     scenario = generate_scenario(7)
     check(score_plan(defer_all(scenario), scenario)["score"] == 0.0, "all-defer shortcut must score zero")
     invalid = defer_all(scenario)

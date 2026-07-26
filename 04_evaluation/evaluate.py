@@ -17,6 +17,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from common.model_client import create_client, request_plan
+from common.prompts import (
+    DETAILED_FINE_TUNING_SYSTEM_PROMPT,
+    FINE_TUNED_SYSTEM_PROMPT,
+    TEACHER_SYSTEM_PROMPT,
+)
 from common.scenario import generate_split
 from common.scoring import score_plan
 
@@ -50,10 +55,24 @@ def plan_pattern(plan: dict | None, scenario: dict) -> str:
     )
 
 
-def write_progress(path: Path, deployment: str, reasoning_effort: str | None, rows: list[dict]) -> None:
+def write_progress(
+    path: Path,
+    deployment: str,
+    reasoning_effort: str | None,
+    prompt_package: str,
+    rows: list[dict],
+) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(
-        json.dumps({"deployment": deployment, "reasoning_effort": reasoning_effort, "rows": rows}, indent=2),
+        json.dumps(
+            {
+                "deployment": deployment,
+                "reasoning_effort": reasoning_effort,
+                "prompt_package": prompt_package,
+                "rows": rows,
+            },
+            indent=2,
+        ),
         encoding="utf-8",
     )
     temporary.replace(path)
@@ -95,6 +114,18 @@ def parse_reasoning(entries: list[str]) -> dict[str, str]:
             raise ValueError(f"reasoning effort must be one of {sorted(allowed)}")
         reasoning[label] = effort
     return reasoning
+
+
+def parse_prompt_packages(entries: list[str]) -> dict[str, str]:
+    """Parse explicit prompt-package selections for evaluation arms."""
+    packages = {}
+    allowed = {"teacher", "thin-fine-tuned", "detailed-fine-tuned"}
+    for entry in entries:
+        label, package = entry.split("=", 1)
+        if package not in allowed:
+            raise ValueError(f"prompt package must be one of {sorted(allowed)}")
+        packages[label] = package
+    return packages
 
 
 def summarize_quality(rows: list[dict]) -> dict:
@@ -210,7 +241,13 @@ def evaluate_arm(
     progress_path: Path,
     rates: dict[str, float] | None,
     reasoning_effort: str | None,
+    prompt_package: str,
 ) -> dict:
+    system_prompt = {
+        "teacher": TEACHER_SYSTEM_PROMPT,
+        "thin-fine-tuned": FINE_TUNED_SYSTEM_PROMPT,
+        "detailed-fine-tuned": DETAILED_FINE_TUNING_SYSTEM_PROMPT,
+    }[prompt_package]
     rows = []
     if progress_path.exists():
         progress = json.loads(progress_path.read_text(encoding="utf-8"))
@@ -218,16 +255,24 @@ def evaluate_arm(
             raise ValueError(f"checkpoint deployment mismatch: {progress_path}")
         if progress.get("reasoning_effort") != reasoning_effort:
             raise ValueError(f"checkpoint reasoning effort mismatch: {progress_path}")
+        if progress.get("prompt_package") != prompt_package:
+            raise ValueError(f"checkpoint prompt package mismatch: {progress_path}")
         rows = progress.get("rows", [])
     completed = {row["scenario_id"] for row in rows}
     for scenario in scenarios:
         if scenario["scenario_id"] in completed:
             print(deployment, scenario["scenario_id"], "resumed")
             continue
-        plan, usage = request_plan(client, deployment, scenario, reasoning_effort=reasoning_effort)
+        plan, usage = request_plan(
+            client,
+            deployment,
+            scenario,
+            reasoning_effort=reasoning_effort,
+            system_prompt=system_prompt,
+        )
         result = score_plan(plan, scenario)
         rows.append({"scenario_id": scenario["scenario_id"], "reasoning_effort": reasoning_effort, "plan": plan, "result": result, "usage": usage, "pattern": plan_pattern(plan, scenario)})
-        write_progress(progress_path, deployment, reasoning_effort, rows)
+        write_progress(progress_path, deployment, reasoning_effort, prompt_package, rows)
         print(deployment, scenario["scenario_id"], round(result["score"], 3), result["category"])
     patterns = Counter(row["pattern"] for row in rows)
     all_defer = sum(row["pattern"].startswith("ship_fraction=0.0;") for row in rows) / len(rows)
@@ -235,6 +280,7 @@ def evaluate_arm(
     return {
         "deployment": deployment,
         "reasoning_effort": reasoning_effort,
+        "prompt_package": prompt_package,
         "mean_score": quality["mean_score"],
         "feasible_rate": quality["feasible_rate"],
         "dominant_pattern_share": max(patterns.values()) / len(rows),
@@ -265,6 +311,7 @@ def main(
     comparison: str | None,
     pricing_entries: list[str],
     reasoning_entries: list[str],
+    prompt_entries: list[str],
     confirm_paid: bool,
 ) -> None:
     if not confirm_paid:
@@ -272,12 +319,16 @@ def main(
     parsed = dict(arm.split("=", 1) for arm in arms)
     pricing = parse_pricing(pricing_entries)
     reasoning = parse_reasoning(reasoning_entries)
+    prompt_packages = parse_prompt_packages(prompt_entries)
     unknown_pricing_labels = set(pricing) - set(parsed)
     if unknown_pricing_labels:
         raise ValueError(f"pricing supplied for unknown arms: {sorted(unknown_pricing_labels)}")
     unknown_reasoning_labels = set(reasoning) - set(parsed)
     if unknown_reasoning_labels:
         raise ValueError(f"reasoning supplied for unknown arms: {sorted(unknown_reasoning_labels)}")
+    unknown_prompt_labels = set(prompt_packages) - set(parsed)
+    if unknown_prompt_labels:
+        raise ValueError(f"prompt package supplied for unknown arms: {sorted(unknown_prompt_labels)}")
     scenarios = generate_split(50_000, count, ("tight", "mixed", "loose"))
     client = create_client()
     RESULTS.mkdir(parents=True, exist_ok=True)
@@ -285,10 +336,21 @@ def main(
     progress_paths = []
     for label, deployment in parsed.items():
         reasoning_effort = reasoning.get(label)
-        deployment_key = hashlib.sha256(f"{deployment}:{reasoning_effort}".encode()).hexdigest()[:12]
+        prompt_package = prompt_packages.get(label, "teacher")
+        deployment_key = hashlib.sha256(
+            f"{deployment}:{reasoning_effort}:{prompt_package}".encode()
+        ).hexdigest()[:12]
         progress_path = RESULTS / f".{label}-{count}-{deployment_key}.progress.json"
         progress_paths.append(progress_path)
-        results[label] = evaluate_arm(client, deployment, scenarios, progress_path, pricing.get(label), reasoning_effort)
+        results[label] = evaluate_arm(
+            client,
+            deployment,
+            scenarios,
+            progress_path,
+            pricing.get(label),
+            reasoning_effort,
+            prompt_package,
+        )
     report = {
         "scenario_count": count,
         "arms": results,
@@ -363,6 +425,20 @@ if __name__ == "__main__":
         default=[],
         help="label=minimal|low|medium|high; repeat for arms requiring explicit reasoning effort",
     )
+    parser.add_argument(
+        "--prompt-package",
+        action="append",
+        default=[],
+        help="label=teacher|thin-fine-tuned|detailed-fine-tuned; defaults to teacher when omitted",
+    )
     parser.add_argument("--confirm-paid", action="store_true")
     args = parser.parse_args()
-    main(args.arm, args.count, args.compare, args.pricing, args.reasoning, args.confirm_paid)
+    main(
+        args.arm,
+        args.count,
+        args.compare,
+        args.pricing,
+        args.reasoning,
+        args.prompt_package,
+        args.confirm_paid,
+    )
