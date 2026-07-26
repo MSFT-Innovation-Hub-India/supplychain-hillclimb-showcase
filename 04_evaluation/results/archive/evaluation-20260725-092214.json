@@ -1,0 +1,220 @@
+{
+  "scenario_count": 1,
+  "arms": {
+    "teacher_high": {
+      "deployment": "gpt-5.2",
+      "reasoning_effort": "high",
+      "mean_score": 0.878161,
+      "feasible_rate": 1,
+      "dominant_pattern_share": 1.0,
+      "all_defer_share": 0.0,
+      "quality": {
+        "mean_score": 0.878161,
+        "feasible_rate": 1,
+        "mean_service": 1.0,
+        "mean_retained_margin": 1.0,
+        "mean_cost_efficiency": 0.390805,
+        "mean_shipping_cost_feasible": 265.0,
+        "mean_expedite_spend_feasible": 180.0,
+        "mean_shipped_orders": 12,
+        "failure_category_counts": {},
+        "failure_category_rates": {}
+      },
+      "inference": {
+        "telemetry_complete": true,
+        "token_semantics": "output_tokens includes reasoning_tokens; reasoning is not billed a second time",
+        "totals": {
+          "input_tokens": 1421,
+          "cached_input_tokens": 0,
+          "output_tokens": 4218,
+          "reasoning_tokens": 3803,
+          "visible_output_tokens": 415,
+          "total_tokens": 5639
+        },
+        "averages_per_scenario": {
+          "input_tokens": 1421.0,
+          "cached_input_tokens": 0.0,
+          "output_tokens": 4218.0,
+          "reasoning_tokens": 3803.0,
+          "visible_output_tokens": 415.0,
+          "total_tokens": 5639.0
+        },
+        "latency_seconds": {
+          "mean": 71.631215,
+          "p50": 71.631215,
+          "p95": 71.631215,
+          "min": 71.631215,
+          "max": 71.631215
+        },
+        "cost": {
+          "estimated_total_usd": 0.06153875,
+          "estimated_usd_per_scenario": 0.06153875,
+          "rates_usd_per_million_tokens": {
+            "input_per_million": 1.75,
+            "output_per_million": 14.0,
+            "cached_input_per_million": 0.18
+          }
+        }
+      },
+      "patterns": {
+        "ship_fraction=1.0;substitute_fraction=0.0;expedite_fraction=0.5": 1
+      },
+      "rows": [
+        {
+          "scenario_id": "tight-50000",
+          "reasoning_effort": "high",
+          "plan": {
+            "decisions": [
+              {
+                "order_id": "O50000-01",
+                "action": "ship",
+                "warehouse_id": "W2",
+                "sku": "D",
+                "quantity": 2,
+                "shipping_mode": "expedite"
+              },
+              {
+                "order_id": "O50000-02",
+                "action": "ship",
+                "warehouse_id": "W1",
+                "sku": "D",
+                "quantity": 3,
+                "shipping_mode": "standard"
+              },
+              {
+                "order_id": "O50000-03",
+                "action": "ship",
+                "warehouse_id": "W1",
+                "sku": "C",
+                "quantity": 3,
+                "shipping_mode": "standard"
+              },
+              {
+                "order_id": "O50000-04",
+                "action": "ship",
+                "warehouse_id": "W1",
+                "sku": "D",
+                "quantity": 3,
+                "shipping_mode": "standard"
+              },
+              {
+                "order_id": "O50000-05",
+                "action": "ship",
+                "warehouse_id": "W2",
+                "sku": "D",
+                "quantity": 2,
+                "shipping_mode": "expedite"
+              },
+              {
+                "order_id": "O50000-06",
+                "action": "ship",
+                "warehouse_id": "W2",
+                "sku": "C",
+                "quantity": 2,
+                "shipping_mode": "expedite"
+              },
+              {
+                "order_id": "O50000-07",
+                "action": "ship",
+                "warehouse_id": "W2",
+                "sku": "D",
+                "quantity": 2,
+                "shipping_mode": "expedite"
+              },
+              {
+                "order_id": "O50000-08",
+                "action": "ship",
+                "warehouse_id": "W2",
+                "sku": "D",
+                "quantity": 1,
+                "shipping_mode": "expedite"
+              },
+              {
+                "order_id": "O50000-09",
+                "action": "ship",
+                "warehouse_id": "W1",
+                "sku": "C",
+                "quantity": 3,
+                "shipping_mode": "standard"
+              },
+              {
+                "order_id": "O50000-10",
+                "action": "ship",
+                "warehouse_id": "W1",
+                "sku": "A",
+                "quantity": 2,
+                "shipping_mode": "standard"
+              },
+              {
+                "order_id": "O50000-11",
+                "action": "ship",
+                "warehouse_id": "W1",
+                "sku": "B",
+                "quantity": 3,
+                "shipping_mode": "standard"
+              },
+              {
+                "order_id": "O50000-12",
+                "action": "ship",
+                "warehouse_id": "W2",
+                "sku": "B",
+                "quantity": 3,
+                "shipping_mode": "expedite"
+              }
+            ]
+          },
+          "result": {
+            "score": 0.878161,
+            "feasible": true,
+            "reason": "feasible plan",
+            "category": "feasible",
+            "metrics": {
+              "service": 1.0,
+              "margin": 1.0,
+              "cost": 0.390805,
+              "shipping_cost": 265.0,
+              "expedite_spend": 180.0,
+              "shipped_orders": 12
+            }
+          },
+          "usage": {
+            "prompt_tokens": 1421,
+            "completion_tokens": 4218,
+            "input_tokens": 1421,
+            "cached_input_tokens": 0,
+            "output_tokens": 4218,
+            "reasoning_tokens": 3803,
+            "visible_output_tokens": 415,
+            "total_tokens": 5639,
+            "latency_seconds": 71.631215
+          },
+          "pattern": "ship_fraction=1.0;substitute_fraction=0.0;expedite_fraction=0.5"
+        }
+      ]
+    }
+  },
+  "hill_climb": {
+    "dimensions": {
+      "quality": "mean deterministic business score; higher is better",
+      "cost": "estimated USD per scenario from explicit token rates; lower is better",
+      "latency": "end-to-end model-call seconds; lower is better"
+    },
+    "points": [
+      {
+        "label": "teacher_high",
+        "deployment": "gpt-5.2",
+        "quality_score": 0.878161,
+        "feasible_rate": 1,
+        "mean_service": 1.0,
+        "mean_retained_margin": 1.0,
+        "mean_cost_efficiency": 0.390805,
+        "p50_latency_seconds": 71.631215,
+        "p95_latency_seconds": 71.631215,
+        "average_input_tokens": 1421.0,
+        "average_output_tokens": 4218.0,
+        "average_reasoning_tokens": 3803.0,
+        "estimated_usd_per_scenario": 0.06153875
+      }
+    ]
+  }
+}

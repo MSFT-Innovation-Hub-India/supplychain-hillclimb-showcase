@@ -1,0 +1,136 @@
+{
+  "deployment": "gpt-5.2",
+  "reasoning_effort": "high",
+  "rows": [
+    {
+      "scenario_id": "tight-50000",
+      "reasoning_effort": "high",
+      "plan": {
+        "decisions": [
+          {
+            "order_id": "O50000-01",
+            "action": "ship",
+            "warehouse_id": "W2",
+            "sku": "D",
+            "quantity": 2,
+            "shipping_mode": "expedite"
+          },
+          {
+            "order_id": "O50000-02",
+            "action": "ship",
+            "warehouse_id": "W1",
+            "sku": "D",
+            "quantity": 3,
+            "shipping_mode": "standard"
+          },
+          {
+            "order_id": "O50000-03",
+            "action": "ship",
+            "warehouse_id": "W1",
+            "sku": "C",
+            "quantity": 3,
+            "shipping_mode": "standard"
+          },
+          {
+            "order_id": "O50000-04",
+            "action": "ship",
+            "warehouse_id": "W1",
+            "sku": "D",
+            "quantity": 3,
+            "shipping_mode": "standard"
+          },
+          {
+            "order_id": "O50000-05",
+            "action": "ship",
+            "warehouse_id": "W2",
+            "sku": "D",
+            "quantity": 2,
+            "shipping_mode": "expedite"
+          },
+          {
+            "order_id": "O50000-06",
+            "action": "ship",
+            "warehouse_id": "W2",
+            "sku": "C",
+            "quantity": 2,
+            "shipping_mode": "expedite"
+          },
+          {
+            "order_id": "O50000-07",
+            "action": "ship",
+            "warehouse_id": "W2",
+            "sku": "D",
+            "quantity": 2,
+            "shipping_mode": "expedite"
+          },
+          {
+            "order_id": "O50000-08",
+            "action": "ship",
+            "warehouse_id": "W2",
+            "sku": "D",
+            "quantity": 1,
+            "shipping_mode": "expedite"
+          },
+          {
+            "order_id": "O50000-09",
+            "action": "ship",
+            "warehouse_id": "W1",
+            "sku": "C",
+            "quantity": 3,
+            "shipping_mode": "standard"
+          },
+          {
+            "order_id": "O50000-10",
+            "action": "ship",
+            "warehouse_id": "W1",
+            "sku": "A",
+            "quantity": 2,
+            "shipping_mode": "standard"
+          },
+          {
+            "order_id": "O50000-11",
+            "action": "ship",
+            "warehouse_id": "W1",
+            "sku": "B",
+            "quantity": 3,
+            "shipping_mode": "standard"
+          },
+          {
+            "order_id": "O50000-12",
+            "action": "ship",
+            "warehouse_id": "W2",
+            "sku": "B",
+            "quantity": 3,
+            "shipping_mode": "expedite"
+          }
+        ]
+      },
+      "result": {
+        "score": 0.878161,
+        "feasible": true,
+        "reason": "feasible plan",
+        "category": "feasible",
+        "metrics": {
+          "service": 1.0,
+          "margin": 1.0,
+          "cost": 0.390805,
+          "shipping_cost": 265.0,
+          "expedite_spend": 180.0,
+          "shipped_orders": 12
+        }
+      },
+      "usage": {
+        "prompt_tokens": 1421,
+        "completion_tokens": 3486,
+        "input_tokens": 1421,
+        "cached_input_tokens": 1280,
+        "output_tokens": 3486,
+        "reasoning_tokens": 3071,
+        "visible_output_tokens": 415,
+        "total_tokens": 4907,
+        "latency_seconds": 52.707951
+      },
+      "pattern": "ship_fraction=1.0;substitute_fraction=0.0;expedite_fraction=0.5"
+    }
+  ]
+}

@@ -12,6 +12,8 @@ One **scenario** is one complete disruption-recovery request containing 12-16 or
 
 The latest reasoning comparison is documented in [Reasoning Hill-Climb Evaluation](results/reasoning-hill-climb-20260725.md). The original three-arm run remains documented in [Teacher vs SFT vs RFT Evaluation Results](results/evaluation-20260724-225229.md).
 
+See the [evaluation artifact index](results/README.md) for the purpose, references, and retention status of every published or archived result.
+
 ## Latest Complete Results
 
 The July 25 comparison retains the original July 24 runs and adds the completed teacher-medium run on the same 150 held-out scenarios:

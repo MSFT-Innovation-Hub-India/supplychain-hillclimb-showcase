@@ -23,6 +23,8 @@ The module is used in two phases:
 | `capture_pilot.py` | Runs the billable go/no-go pilot and writes all candidate attempts to `traces/pilot.jsonl` |
 | `analyze_pilot.py` | Measures feasibility, reward variation, and output diversity; writes the gate decision to `traces/pilot_gate.json` |
 | `capture_training.py` | Creates fixed train/validation scenarios and writes selected teacher results to `traces/training.jsonl` |
+
+See the [trace artifact index](traces/README.md) for each retained file's purpose, consumers, and archive status.
 | `traces/*.jsonl` | Append-only evidence containing scenarios, model plans, grader results, and usage data |
 
 The scripts reuse the shared `common` package so every stage applies the same contract:
