@@ -104,10 +104,17 @@ def score_plan(plan: Any, scenario: dict[str, Any]) -> dict[str, Any]:
         "category": "feasible",
         "metrics": {
             "service": round(service, 6),
+            "service_earned": round(service_earned, 6),
+            "total_priority": total_priority,
             "margin": round(margin, 6),
+            "margin_earned": round(margin_earned, 2),
+            "total_margin": total_margin,
             "cost": round(cost, 6),
+            "fulfilled_fraction": round(fulfilled_fraction, 6),
+            "reference_cost": round(reference_cost, 2),
             "shipping_cost": round(shipping_cost, 2),
             "expedite_spend": round(expedite_spend, 2),
             "shipped_orders": shipped_orders,
+            "total_orders": len(orders),
         },
     }

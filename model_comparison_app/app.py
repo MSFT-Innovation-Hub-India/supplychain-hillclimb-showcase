@@ -527,35 +527,120 @@ def audit_plan(plan: dict[str, Any] | None, scenario: dict[str, Any]) -> dict[st
     }
 
 
-def rationale_for(model_name: str, record: dict[str, Any]) -> list[str]:
+def objective_status(value: float) -> str:
+    if value >= 1.0:
+        return "✓ Met"
+    if value > 0.0:
+        return "● Partial"
+    return "✕ Not met"
+
+
+def rationale_rows(record: dict[str, Any]) -> list[dict[str, str]]:
     result = record["result"]
     scenario = record["scenario"]
-    audit = audit_plan(record["plan"], scenario)
     if not result["feasible"]:
         return [
-            "The plan fails the operational gate, so the complete allocation receives zero reward.",
-            *audit["issues"],
-            "The failure is not about style: downstream execution would attempt inventory or capacity that does not exist.",
+            {
+                "Check": "Operational constraints",
+                "Status": "✕ Not met",
+                "Value": "Fail",
+                "Why": f"{result['reason'].capitalize()}. A hard-constraint failure makes the complete reward zero.",
+            }
         ]
 
     metrics = result["metrics"]
-    decisions = record["plan"].get("decisions", []) if isinstance(record["plan"], dict) else []
-    expedited = [d.get("order_id") for d in decisions if isinstance(d, dict) and d.get("shipping_mode") == "expedite"]
-    deferred = [d.get("order_id") for d in decisions if isinstance(d, dict) and d.get("action") == "defer"]
-    rationale = [
-        f"{len(scenario['orders'])} orders are covered by a feasible plan; priority-weighted on-time service is {metrics['service']:.1%}.",
-        f"The plan retains {metrics['margin']:.1%} of available margin while spending \\${metrics['shipping_cost']:.0f} on shipping.",
-        f"Expedite spend is \\${metrics['expedite_spend']:.0f} of the \\${scenario['expedite_budget']} budget.",
+    return [
+        {
+            "Check": "Operational constraints",
+            "Status": "✓ Met",
+            "Value": "Pass",
+            "Why": "Coverage, warehouse, quantity, substitution, inventory, capacity, and expedite-budget checks passed.",
+        },
+        {
+            "Check": "On-time service",
+            "Status": objective_status(metrics["service"]),
+            "Value": f"{metrics['service']:.1%}",
+            "Why": f"Earned {metrics['service_earned']:g} of {metrics['total_priority']:g} available priority points from on-time orders.",
+        },
+        {
+            "Check": "Retained margin",
+            "Status": objective_status(metrics["margin"]),
+            "Value": f"{metrics['margin']:.1%}",
+            "Why": f"Retained ${metrics['margin_earned']:,.2f} of ${metrics['total_margin']:,.2f}; substitutes and late shipments reduce retention.",
+        },
+        {
+            "Check": "Cost efficiency",
+            "Status": objective_status(metrics["cost"]),
+            "Value": f"{metrics['cost']:.1%}",
+            "Why": f"Shipped {metrics['shipped_orders']} of {len(scenario['orders'])} orders for ${metrics['shipping_cost']:,.2f} against a ${metrics['reference_cost']:,.2f} reference cost.",
+        },
+        {
+            "Check": "Expedite budget",
+            "Status": "✓ Met",
+            "Value": f"${metrics['expedite_spend']:,.2f} / ${scenario['expedite_budget']:,.2f}",
+            "Why": "Only expedited shipments consume this hard budget; standard shipping still counts toward total shipping cost.",
+        },
     ]
-    if metrics["expedite_spend"] == 0:
-        rationale.append("Every shipped order meets its deadline using standard service only, so no expedite budget is spent.")
+
+
+def reward_breakdown_rows(result: dict[str, Any]) -> list[dict[str, str]]:
+    metrics = result["metrics"]
+    return [
+        {
+            "label": "On-time service (55%)",
+            "working": f"{metrics['service_earned']:g} ÷ {metrics['total_priority']:g} = {metrics['service']:.4f}",
+            "contribution": f"0.55 × {metrics['service']:.4f} = {0.55 * metrics['service']:.4f}",
+        },
+        {
+            "label": "Retained margin (25%)",
+            "working": f"${metrics['margin_earned']:,.2f} ÷ ${metrics['total_margin']:,.2f} = {metrics['margin']:.4f}",
+            "contribution": f"0.25 × {metrics['margin']:.4f} = {0.25 * metrics['margin']:.4f}",
+        },
+        {
+            "label": "Cost efficiency (20%)",
+            "working": f"{metrics['shipped_orders']} ÷ {metrics['total_orders']} × max(0, 1 − ${metrics['shipping_cost']:,.2f} ÷ ${metrics['reference_cost']:,.2f}) = {metrics['cost']:.4f}",
+            "contribution": f"0.20 × {metrics['cost']:.4f} = {0.20 * metrics['cost']:.4f}",
+        },
+    ]
+
+
+def render_result_explanation(model_name: str, record: dict[str, Any]) -> None:
+    result = record["result"]
+    st.subheader(f"{MODEL_OPTIONS[model_name]['short']} rationale")
+    rationale = pd.DataFrame(rationale_rows(record))
+    rationale_style = rationale.style.map(
+        lambda value: (
+            "color: #15803d; font-weight: 700" if value == "✓ Met"
+            else "color: #b45309; font-weight: 700" if value == "● Partial"
+            else "color: #b91c1c; font-weight: 700" if value == "✕ Not met"
+            else ""
+        ),
+        subset=["Status"],
+    ).hide(axis="index")
+    st.table(rationale_style, border="horizontal")
+
+    st.markdown('<div class="section-label">How this reward was calculated</div>', unsafe_allow_html=True)
+    st.latex(r"R = 0.55S + 0.25M + 0.20C")
+    if result["feasible"]:
+        metrics = result["metrics"]
+        calculation_columns = st.columns(3)
+        for column, component in zip(calculation_columns, reward_breakdown_rows(result)):
+            with column:
+                st.markdown(
+                    f"**{component['label']}**  \n"
+                    f"Value: `{component['working']}`  \n"
+                    f"Weighted contribution: `{component['contribution']}`"
+                )
+        st.latex(
+            rf"R = 0.55({metrics['service']:.4f}) + 0.25({metrics['margin']:.4f}) + "
+            rf"0.20({metrics['cost']:.4f}) = {result['score']:.4f}"
+        )
+        st.caption(
+            "Service is priority-weighted on-time delivery. Margin reflects substitution and lateness penalties. "
+            "Cost efficiency combines the fulfilled-order fraction with shipping cost relative to $15 per ordered unit."
+        )
     else:
-        order_list = ", ".join(expedited) if expedited else "at least one order"
-        rationale.append(f"Meeting every deadline required expediting {order_list}, which consumes part of the expedite budget.")
-    if deferred:
-        rationale.append(f"{len(deferred)} order(s) were deferred: {', '.join(deferred)}.")
-    rationale.append("This explanation is computed from the returned plan and grader metrics; it is not hidden model chain-of-thought.")
-    return rationale
+        st.latex(r"R = 0 \quad \text{because the hard constraint gate failed}")
 
 
 def render_result(model_name: str) -> None:
@@ -612,11 +697,7 @@ def render_result(model_name: str) -> None:
     if audit["issues"]:
         st.error("\n".join(f"• {issue}" for issue in audit["issues"]))
     elif result["feasible"]:
-        st.success("Inventory, capacity, substitution, timing, quantity, and expedite-budget checks passed.")
-
-    st.markdown('<div class="section-label">Business rationale</div>', unsafe_allow_html=True)
-    for statement in rationale_for(model_name, record):
-        st.markdown(f"- {statement}")
+        st.success("Coverage, warehouse, inventory, capacity, substitution, quantity, and expedite-budget checks passed.")
 
 
 st.markdown('<div class="hero-kicker">Decision intelligence showcase</div>', unsafe_allow_html=True)
@@ -768,6 +849,18 @@ with result_right:
 
 left_record = st.session_state.results.get(left_model)
 right_record = st.session_state.results.get(right_model)
+explanation_records = [
+    (model_name, record)
+    for model_name, record in ((left_model, left_record), (right_model, right_record))
+    if record
+]
+if explanation_records:
+    st.header("Result explanations")
+    explanation_tabs = st.tabs([MODEL_OPTIONS[model_name]["short"] for model_name, _ in explanation_records])
+    for explanation_tab, (model_name, record) in zip(explanation_tabs, explanation_records):
+        with explanation_tab:
+            render_result_explanation(model_name, record)
+
 if left_record and right_record:
     st.divider()
     st.header("Run analysis")
