@@ -163,7 +163,7 @@ LIVE_SCENARIO_BASE = {
             "expedite_cost": 18,
         },
     ],
-    "expedite_budget": 40,
+    "expedite_budget": 60,
 }
 
 VERIFIED_RESULTS = {
@@ -236,7 +236,7 @@ VERIFIED_RESULTS = {
 }
 
 st.set_page_config(
-    page_title="Allocation Recovery Lab",
+    page_title="Warehouse Planning Gym",
     page_icon=":material/route:",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -584,7 +584,11 @@ def render_result(model_name: str) -> None:
     metric_columns[2].metric("Latency", f"{record['seconds']:.1f} s")
     usage = record.get("usage") or {}
     cost = estimate_cost_usd(model_name, usage)
-    metric_columns[3].metric("Est. cost", f"${cost['total_cost']:.4f}")
+    metric_columns[3].metric(
+        "Est. cost",
+        f"${cost['total_cost']:.4f}",
+        help=f"Input: ${cost['input_cost']:.6f} · Output: ${cost['output_cost']:.6f} · Total: ${cost['total_cost']:.6f}",
+    )
 
     st.markdown('<div class="section-label">Token usage &amp; estimated cost</div>', unsafe_allow_html=True)
     input_tokens = usage.get("input_tokens") or 0
@@ -616,7 +620,7 @@ def render_result(model_name: str) -> None:
 
 
 st.markdown('<div class="hero-kicker">Decision intelligence showcase</div>', unsafe_allow_html=True)
-st.title("Allocation Recovery Lab")
+st.title("Warehouse Planning Gym")
 st.markdown(
     '<div class="hero-copy">Compare two models on the same constrained recovery decision. The app validates each plan with the production-style grader and explains the operational outcome in business terms.</div>',
     unsafe_allow_html=True,
@@ -642,6 +646,7 @@ with selector_right:
     right_model = st.selectbox("Right model", right_candidates, index=right_candidates.index(default_right))
 with run_column:
     action = "Replay" if replay_mode else "Run"
+    action_ing = "Replaying" if replay_mode else "Running"
     run_both = st.button(f"{action} both models", type="primary", use_container_width=True, icon=":material/play_arrow:")
 
 left_action, right_action = st.columns(2)
@@ -652,10 +657,10 @@ with right_action:
 
 try:
     if run_both or run_left:
-        with st.spinner(f"{action}ing {MODEL_OPTIONS[left_model]['short']}..."):
+        with st.spinner(f"{action_ing} {MODEL_OPTIONS[left_model]['short']}..."):
             run_model(left_model, replay=replay_mode)
     if run_both or run_right:
-        with st.spinner(f"{action}ing {MODEL_OPTIONS[right_model]['short']}..."):
+        with st.spinner(f"{action_ing} {MODEL_OPTIONS[right_model]['short']}..."):
             run_model(right_model, replay=replay_mode)
 except Exception as error:
     st.error(f"Model call failed: {type(error).__name__}: {error}")
