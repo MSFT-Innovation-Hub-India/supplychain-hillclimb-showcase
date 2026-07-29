@@ -1,0 +1,4 @@
+name: supplychain-model-comparison
+infra:
+  provider: bicep
+  path: infra

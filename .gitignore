@@ -1,4 +1,7 @@
 .env
+.copilot-azure/
+.azure/*
+!.azure/deployment-plan.md
 .pytest_cache/
 __pycache__/
 *.py[cod]

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "swedencentral"
+    },
+    "containerAppName": {
+      "value": "foundry-agent-grader-app"
+    },
+    "containerAppsEnvironmentName": {
+      "value": "cae-foundry-agent-grader"
+    },
+    "containerRegistryName": {
+      "value": "foundrygradermcp35d56b"
+    },
+    "foundryResourceGroupName": {
+      "value": "rg-foundry-projects"
+    },
+    "foundryAccountName": {
+      "value": "viarbat-foundry-projects"
+    },
+    "foundryProjectName": {
+      "value": "rft-models-hosting-project"
+    },
+    "foundryProjectEndpoint": {
+      "value": "https://viarbat-foundry-projects.services.ai.azure.com/api/projects/rft-models-hosting-project"
+    },
+    "sftAgentVersion": {
+      "value": "14"
+    },
+    "rftAgentVersion": {
+      "value": "13"
+    },
+    "teacherAgentVersion": {
+      "value": "2"
+    }
+  }
+}

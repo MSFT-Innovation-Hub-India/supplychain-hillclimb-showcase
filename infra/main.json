@@ -1,0 +1,293 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.45.15.27210",
+      "templateHash": "14620100201165295319"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "swedencentral",
+      "metadata": {
+        "description": "Azure region of the existing Container Apps environment."
+      }
+    },
+    "containerAppName": {
+      "type": "string",
+      "defaultValue": "foundry-agent-grader-app",
+      "metadata": {
+        "description": "Name of the Container App to create or update."
+      }
+    },
+    "containerAppsEnvironmentName": {
+      "type": "string",
+      "defaultValue": "cae-foundry-agent-grader",
+      "metadata": {
+        "description": "Name of the existing Container Apps environment."
+      }
+    },
+    "containerRegistryName": {
+      "type": "string",
+      "defaultValue": "foundrygradermcp35d56b",
+      "metadata": {
+        "description": "Name of the existing Azure Container Registry."
+      }
+    },
+    "containerImage": {
+      "type": "string",
+      "defaultValue": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
+      "metadata": {
+        "description": "Container image. Use a public bootstrap image for the first RBAC deployment, then the ACR image."
+      }
+    },
+    "bootstrapMode": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Use the public image settings while managed-identity RBAC propagates."
+      }
+    },
+    "foundryResourceGroupName": {
+      "type": "string",
+      "defaultValue": "rg-foundry-projects",
+      "metadata": {
+        "description": "Resource group containing the existing Foundry project."
+      }
+    },
+    "foundryAccountName": {
+      "type": "string",
+      "defaultValue": "viarbat-foundry-projects",
+      "metadata": {
+        "description": "Existing Foundry account name."
+      }
+    },
+    "foundryProjectName": {
+      "type": "string",
+      "defaultValue": "rft-models-hosting-project",
+      "metadata": {
+        "description": "Existing Foundry project name."
+      }
+    },
+    "foundryProjectEndpoint": {
+      "type": "string",
+      "defaultValue": "https://viarbat-foundry-projects.services.ai.azure.com/api/projects/rft-models-hosting-project",
+      "metadata": {
+        "description": "Existing Foundry project endpoint used by the app."
+      }
+    }
+  },
+  "variables": {
+    "acrPullRoleDefinitionId": "7f951dda-4ed3-4680-a7ca-43fe172d538d",
+    "foundryAgentConsumerRoleDefinitionId": "eed3b665-ab3a-47b6-8f48-c9382fb1dad6",
+    "targetPort": "[if(parameters('bootstrapMode'), 80, 8501)]",
+    "productionProbes": [
+      {
+        "type": "Liveness",
+        "httpGet": {
+          "path": "/_stcore/health",
+          "port": 8501,
+          "scheme": "HTTP"
+        },
+        "initialDelaySeconds": 20,
+        "periodSeconds": 30,
+        "timeoutSeconds": 5,
+        "failureThreshold": 3
+      },
+      {
+        "type": "Readiness",
+        "httpGet": {
+          "path": "/_stcore/health",
+          "port": 8501,
+          "scheme": "HTTP"
+        },
+        "initialDelaySeconds": 10,
+        "periodSeconds": 10,
+        "timeoutSeconds": 5,
+        "failureThreshold": 3
+      }
+    ]
+  },
+  "resources": [
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[parameters('containerAppName')]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', parameters('containerAppsEnvironmentName'))]",
+        "configuration": {
+          "activeRevisionsMode": "Single",
+          "ingress": {
+            "external": true,
+            "targetPort": "[variables('targetPort')]",
+            "transport": "auto",
+            "allowInsecure": false
+          },
+          "registries": "[if(parameters('bootstrapMode'), createArray(), createArray(createObject('server', reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('containerRegistryName')), '2023-07-01').loginServer, 'identity', 'system')))]"
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "model-comparison-app",
+              "image": "[parameters('containerImage')]",
+              "env": [
+                {
+                  "name": "AZURE_AI_PROJECT_ENDPOINT",
+                  "value": "[parameters('foundryProjectEndpoint')]"
+                },
+                {
+                  "name": "SFT_AGENT_NAME",
+                  "value": "SupplyChainOrderFulfilmentAgent-SFT"
+                },
+                {
+                  "name": "SFT_AGENT_VERSION",
+                  "value": "13"
+                },
+                {
+                  "name": "RFT_AGENT_NAME",
+                  "value": "SupplyChainOrderFulfilmentAgent-RFT"
+                },
+                {
+                  "name": "RFT_AGENT_VERSION",
+                  "value": "10"
+                },
+                {
+                  "name": "TEACHER_AGENT_NAME",
+                  "value": "SupplyChainOrderFulfilmentAgent-Teacher"
+                },
+                {
+                  "name": "TEACHER_AGENT_VERSION",
+                  "value": "2"
+                },
+                {
+                  "name": "AZURE_TOKEN_CREDENTIALS",
+                  "value": "ManagedIdentityCredential"
+                }
+              ],
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "probes": "[if(parameters('bootstrapMode'), createArray(), variables('productionProbes'))]"
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 2
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.ContainerRegistry/registries', parameters('containerRegistryName'))]",
+      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('containerRegistryName')), resourceId('Microsoft.App/containerApps', parameters('containerAppName')), variables('acrPullRoleDefinitionId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('acrPullRoleDefinitionId'))]",
+        "principalId": "[reference(resourceId('Microsoft.App/containerApps', parameters('containerAppName')), '2024-03-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', parameters('containerAppName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "foundry-agent-consumer-role",
+      "subscriptionId": "[subscription().subscriptionId]",
+      "resourceGroup": "[parameters('foundryResourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "accountName": {
+            "value": "[parameters('foundryAccountName')]"
+          },
+          "projectName": {
+            "value": "[parameters('foundryProjectName')]"
+          },
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.App/containerApps', parameters('containerAppName')), '2024-03-01', 'full').identity.principalId]"
+          },
+          "roleDefinitionId": {
+            "value": "[variables('foundryAgentConsumerRoleDefinitionId')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.45.15.27210",
+              "templateHash": "10542449022330596821"
+            }
+          },
+          "parameters": {
+            "accountName": {
+              "type": "string"
+            },
+            "projectName": {
+              "type": "string"
+            },
+            "principalId": {
+              "type": "string"
+            },
+            "roleDefinitionId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.CognitiveServices/accounts/projects', parameters('accountName'), parameters('projectName'))]",
+              "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts/projects', parameters('accountName'), parameters('projectName')), parameters('principalId'), parameters('roleDefinitionId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', parameters('containerAppName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "containerAppId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.App/containerApps', parameters('containerAppName'))]"
+    },
+    "containerAppPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.App/containerApps', parameters('containerAppName')), '2024-03-01', 'full').identity.principalId]"
+    },
+    "containerAppFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.App/containerApps', parameters('containerAppName')), '2024-03-01').configuration.ingress.fqdn]"
+    },
+    "managedEnvironmentId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.App/managedEnvironments', parameters('containerAppsEnvironmentName'))]"
+    },
+    "containerRegistryId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.ContainerRegistry/registries', parameters('containerRegistryName'))]"
+    }
+  }
+}

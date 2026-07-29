@@ -1,0 +1,1 @@
+"""Remote MCP wrapper for deterministic supply-chain grading."""

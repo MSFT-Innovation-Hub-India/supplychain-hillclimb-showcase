@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.45.15.27210",
+      "templateHash": "10542449022330596821"
+    }
+  },
+  "parameters": {
+    "accountName": {
+      "type": "string"
+    },
+    "projectName": {
+      "type": "string"
+    },
+    "principalId": {
+      "type": "string"
+    },
+    "roleDefinitionId": {
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.CognitiveServices/accounts/projects', parameters('accountName'), parameters('projectName'))]",
+      "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts/projects', parameters('accountName'), parameters('projectName')), parameters('principalId'), parameters('roleDefinitionId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+        "principalId": "[parameters('principalId')]",
+        "principalType": "ServicePrincipal"
+      }
+    }
+  ]
+}

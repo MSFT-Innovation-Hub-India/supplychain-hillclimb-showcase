@@ -1,0 +1,8 @@
+*
+!common/
+!common/**
+!requirements.txt
+!model_comparison_app/
+!model_comparison_app/**
+!grader_mcp/
+!grader_mcp/**
