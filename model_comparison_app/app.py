@@ -135,8 +135,8 @@ LIVE_SCENARIO_BASE = {
         {
             "warehouse_id": "W1",
             "available": True,
-            "inventory": {"A": 4, "A2": 2, "B": 3, "B2": 2, "C": 2, "D": 3},
-            "shipment_capacity": 10,
+            "inventory": {"A": 8, "A2": 5, "B": 6, "B2": 4, "C": 5, "D": 6},
+            "shipment_capacity": 20,
             "standard_hours": 24,
             "standard_cost": 6,
             "expedite_hours": 10,
@@ -145,8 +145,8 @@ LIVE_SCENARIO_BASE = {
         {
             "warehouse_id": "W2",
             "available": True,
-            "inventory": {"A": 2, "A2": 3, "B": 4, "B2": 3, "C": 3, "D": 1},
-            "shipment_capacity": 9,
+            "inventory": {"A": 5, "A2": 7, "B": 8, "B2": 6, "C": 6, "D": 3},
+            "shipment_capacity": 18,
             "standard_hours": 30,
             "standard_cost": 5,
             "expedite_hours": 14,
@@ -155,8 +155,8 @@ LIVE_SCENARIO_BASE = {
         {
             "warehouse_id": "W3",
             "available": True,
-            "inventory": {"A": 1, "A2": 1, "B": 1, "B2": 2, "C": 2, "D": 2},
-            "shipment_capacity": 6,
+            "inventory": {"A": 4, "A2": 3, "B": 4, "B2": 5, "C": 5, "D": 4},
+            "shipment_capacity": 15,
             "standard_hours": 18,
             "standard_cost": 8,
             "expedite_hours": 8,
@@ -322,6 +322,26 @@ hr { border-color: var(--cp-border); }
 )
 
 
+# Azure OpenAI Global-deployment pricing, USD per 1,000,000 tokens.
+# Source: https://azure.microsoft.com/en-us/pricing/details/azure-openai/ (checked 2026-07-29).
+# Reasoning tokens are billed within the output-token count, not as an addition.
+MODEL_PRICING = {
+    "Supervised fine-tuned (SFT)": {"model": "gpt-4.1-mini", "input_per_million": 0.40, "output_per_million": 1.60},
+    "Reinforcement fine-tuned (RFT)": {"model": "o4-mini", "input_per_million": 1.10, "output_per_million": 4.40},
+    "Teacher model": {"model": "gpt-5.2", "input_per_million": 1.75, "output_per_million": 14.00},
+}
+
+
+def estimate_cost_usd(model_name: str, usage: dict[str, Any]) -> dict[str, float]:
+    """Estimate USD cost from token usage using Azure OpenAI Global pricing."""
+    pricing = MODEL_PRICING[model_name]
+    input_tokens = usage.get("input_tokens") or 0
+    output_tokens = usage.get("output_tokens") or 0
+    input_cost = input_tokens / 1_000_000 * pricing["input_per_million"]
+    output_cost = output_tokens / 1_000_000 * pricing["output_per_million"]
+    return {"input_cost": input_cost, "output_cost": output_cost, "total_cost": input_cost + output_cost}
+
+
 def initial_results() -> dict[str, dict[str, Any]]:
     results: dict[str, dict[str, Any]] = {}
     for model_name, record in VERIFIED_RESULTS.items():
@@ -337,6 +357,8 @@ if "results" not in st.session_state:
     st.session_state.results = initial_results()
 if "live_orders" not in st.session_state:
     st.session_state.live_orders = [dict(order) for order in DEFAULT_LIVE_ORDERS]
+if "live_expedite_budget" not in st.session_state:
+    st.session_state.live_expedite_budget = LIVE_SCENARIO_BASE["expedite_budget"]
 if "extra_instructions" not in st.session_state:
     st.session_state.extra_instructions = {name: "" for name in MODEL_OPTIONS}
 
@@ -364,7 +386,7 @@ def build_live_scenario() -> dict[str, Any]:
                 "margin": max(0, int(row.get("margin") or 0)),
             }
         )
-    return {**LIVE_SCENARIO_BASE, "orders": orders}
+    return {**LIVE_SCENARIO_BASE, "orders": orders, "expedite_budget": max(0, int(st.session_state.live_expedite_budget))}
 
 
 def run_model(model_name: str, replay: bool = False) -> None:
@@ -556,10 +578,29 @@ def render_result(model_name: str) -> None:
     status_label = "Feasible" if result["feasible"] else "Invalid plan"
     st.markdown(f'<span class="{status_class}">{status_label}</span> · {record["source"]}', unsafe_allow_html=True)
 
-    metric_columns = st.columns(3)
+    metric_columns = st.columns(4)
     metric_columns[0].metric("Reward", f"{result['score']:.3f}")
     metric_columns[1].metric("Constraint gate", "Pass" if result["feasible"] else "Fail")
     metric_columns[2].metric("Latency", f"{record['seconds']:.1f} s")
+    usage = record.get("usage") or {}
+    cost = estimate_cost_usd(model_name, usage)
+    metric_columns[3].metric("Est. cost", f"${cost['total_cost']:.4f}")
+
+    st.markdown('<div class="section-label">Token usage &amp; estimated cost</div>', unsafe_allow_html=True)
+    input_tokens = usage.get("input_tokens") or 0
+    reasoning_tokens = usage.get("reasoning_tokens") or 0
+    visible_output_tokens = usage.get("visible_output_tokens") or 0
+    output_tokens = usage.get("output_tokens") or 0
+    pricing = MODEL_PRICING[model_name]
+    token_rows = [
+        {"Category": "Input", "Tokens": input_tokens, "Cost": f"${cost['input_cost']:.4f}"},
+        {"Category": "Reasoning (within output)", "Tokens": reasoning_tokens, "Cost": "included in output"},
+        {"Category": "Visible output", "Tokens": visible_output_tokens, "Cost": "included in output"},
+        {"Category": "Total output", "Tokens": output_tokens, "Cost": f"${cost['output_cost']:.4f}"},
+        {"Category": "Total", "Tokens": input_tokens + output_tokens, "Cost": f"${cost['total_cost']:.4f}"},
+    ]
+    st.dataframe(pd.DataFrame(token_rows), use_container_width=True, hide_index=True)
+    st.caption(f"Model: {pricing['model']} · ${pricing['input_per_million']:.2f}/1M input tokens · ${pricing['output_per_million']:.2f}/1M output tokens (Azure OpenAI Global pricing).")
 
     st.markdown('<div class="section-label">Allocation decisions</div>', unsafe_allow_html=True)
     st.dataframe(pd.DataFrame(audit["decision_rows"]), use_container_width=True, hide_index=True)
@@ -646,13 +687,26 @@ with input_overview:
             },
         )
         st.session_state.live_orders = edited_orders.to_dict("records")
-        if st.button("Reset orders to default", key="reset-live-orders"):
+        if st.button("Reset scenario to default", key="reset-live-orders"):
             st.session_state.live_orders = [dict(order) for order in DEFAULT_LIVE_ORDERS]
+            st.session_state.live_expedite_budget = LIVE_SCENARIO_BASE["expedite_budget"]
             st.rerun()
         display_scenario = build_live_scenario()
 
     budget_col, pressure_col, order_col = st.columns(3)
-    budget_col.metric("Expedite budget", f"${display_scenario['expedite_budget']}")
+    if replay_mode:
+        budget_col.metric("Expedite budget", f"${display_scenario['expedite_budget']}")
+    else:
+        with budget_col:
+            st.session_state.live_expedite_budget = st.number_input(
+                "Expedite budget ($)",
+                min_value=0,
+                step=5,
+                value=int(st.session_state.live_expedite_budget),
+                key="live_expedite_budget_input",
+                help="Editable — lower it to make expedite spend a tighter constraint, or raise it to loosen it. Takes effect on the next Run, no redeploy needed.",
+            )
+            display_scenario = build_live_scenario()
     pressure_col.metric("Budget pressure", display_scenario["family"].title())
     order_col.metric("Orders", len(display_scenario["orders"]))
     if replay_mode:
