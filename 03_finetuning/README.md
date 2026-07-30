@@ -35,6 +35,7 @@ Dataset JSONL -> Local safety checks -> Upload files -> Submit Foundry job
 | [rft/grader.json](rft/grader.json) | Grader definition sent with the RFT request |
 | [rft/submit_rft_job.py](rft/submit_rft_job.py) | Validate local RFT inputs, upload data, and submit the reinforcement job |
 | [deploy_finetuned_model.py](deploy_finetuned_model.py) | Deploy a completed fine-tuned model ID to the Azure AI account |
+| [redeploy_cross_subscription.py](redeploy_cross_subscription.py) | Redeploy an already fine-tuned model into a different subscription, resource group, or account |
 | [common/fine_tuning_api.py](../common/fine_tuning_api.py) | Shared upload, submission, duplicate-job check, and polling client |
 
 ## Before Submission
@@ -303,30 +304,43 @@ Deploy SFT and RFT under distinct names. These deployment names, not the fine-tu
 
 A fine-tuned model artifact is owned by the Azure AI Foundry account where the training job ran. Deleting a *deployment* does not delete that artifact, so a deployment can be recreated later, including under a different subscription, as long as the caller has access to both the source account (to read the exact fine-tuned model ID) and the destination account (to create the deployment).
 
-This was used to restore `supplychain-sft` and `supplychain-rft` after both deployments were deleted from the destination account:
+[redeploy_cross_subscription.py](redeploy_cross_subscription.py) does this. Unlike [deploy_finetuned_model.py](deploy_finetuned_model.py) (`api-version=2023-05-01`, one subscription/resource-group/account read from `.env`), it takes every ARM coordinate as an explicit argument and defaults to `api-version=2024-10-01`, so the destination account, resource group, and subscription can differ from the source account while still referencing the source account's fine-tuned model ID. It does not repeat any training: no dataset, grader, or fine-tuning job is touched, it only recreates the deployment pointer.
 
-1. **Confirm the source model IDs still exist.** List fine-tuned models on the source Foundry account (the one where the SFT/RFT jobs originally ran) and copy the exact fine-tuned model ID string for each, for example `gpt-4.1-mini-2025-04-14.ft-<job-id>-allocation-sft-v2`. Deployment truncates long names in the portal, so read the ID from the API response, not the UI.
-2. **Confirm the destination account and resource group.** The destination subscription only needs an existing Cognitive Services / Foundry account; it does not need to be the account that ran the fine-tuning job.
-3. **Get a management-plane token** with `DefaultAzureCredential` (or `az account get-access-token`) for scope `https://management.azure.com/.default`. This is a separate scope and endpoint from model inference.
-4. **PUT the deployment directly against the destination account**, with `properties.model.name` set to the source account's fine-tuned model ID:
+This restored `supplychain-sft` and `supplychain-rft` after both deployments were deleted from the destination account. These are the exact commands used, with every parameter spelled out explicitly rather than relying on defaults, so they can be reused as-is without re-deriving any value:
 
-   ```text
-   PUT https://management.azure.com/subscriptions/<destination-subscription>
-       /resourceGroups/<destination-resource-group>
-       /providers/Microsoft.CognitiveServices/accounts/<destination-account>
-       /deployments/<deployment-name>?api-version=2024-10-01
+```powershell
+.\.venv\Scripts\python.exe 03_finetuning/redeploy_cross_subscription.py supplychain-rft `
+  --model-id "o4-mini-2025-04-16.ft-009235590d634c1aa8f35dcde9ecf0e6-allocation-rft" `
+  --destination-subscription 35d56b9b-9660-4b8a-aaf6-76cfc033ac97 `
+  --destination-resource-group rg-foundry-projects `
+  --destination-account viarbat-foundry-projects `
+  --sku DeveloperTier `
+  --capacity 1 `
+  --api-version 2024-10-01 `
+  --interval 15 `
+  --timeout 900 `
+  --confirm-paid
 
-   {
-     "sku": { "name": "DeveloperTier", "capacity": 1 },
-     "properties": { "model": { "format": "OpenAI", "name": "<fine-tuned-model-id-from-source-account>", "version": "1" } }
-   }
-   ```
+.\.venv\Scripts\python.exe 03_finetuning/redeploy_cross_subscription.py supplychain-sft `
+  --model-id "gpt-4.1-mini-2025-04-14.ft-de7a80db303a47a8b56f48cb143b43e2-allocation-sft-v2" `
+  --destination-subscription 35d56b9b-9660-4b8a-aaf6-76cfc033ac97 `
+  --destination-resource-group rg-foundry-projects `
+  --destination-account viarbat-foundry-projects `
+  --sku DeveloperTier `
+  --capacity 1 `
+  --api-version 2024-10-01 `
+  --interval 15 `
+  --timeout 900 `
+  --confirm-paid
+```
 
-   [deploy_finetuned_model.py](deploy_finetuned_model.py) targets `api-version=2023-05-01` and a single subscription/resource-group/account set from `.env`; this recovery instead used a direct ARM REST call at `api-version=2024-10-01` so the destination account, resource group, and subscription could differ from the source while still referencing the source model ID.
-5. **Poll `provisioningState`** on the same deployment resource until it reaches `Succeeded` or `Failed` (`Creating` is the expected in-progress state).
-6. **Verify the restored deployments** with `az cognitiveservices account deployment list`, confirming `name`, `properties.model.name`, `sku.name`, and `sku.capacity` match what was deployed before deletion.
+`--sku`, `--capacity`, `--api-version`, `--interval`, and `--timeout` above match the script's defaults; they are written out here only so the full working invocation is visible without opening the script. To redeploy a model whose ID has been forgotten, resolve it directly from a still-existing source deployment instead of guessing it, by passing `--source-subscription`, `--source-resource-group`, `--source-account`, and `--source-deployment-name` in place of `--model-id`.
 
-This does not repeat any training: no dataset, grader, or fine-tuning job is touched. It only recreates the hosted deployment pointer to an already-trained model artifact.
+Verify the result with:
+
+```powershell
+az cognitiveservices account deployment list --subscription 35d56b9b-9660-4b8a-aaf6-76cfc033ac97 --resource-group rg-foundry-projects --name viarbat-foundry-projects --query "[?name=='supplychain-sft' || name=='supplychain-rft'].{name:name,state:properties.provisioningState,model:properties.model.name,sku:sku.name,capacity:sku.capacity}" -o table
+```
 
 ## Handoff To Evaluation
 
