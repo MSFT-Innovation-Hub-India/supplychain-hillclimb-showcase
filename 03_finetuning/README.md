@@ -299,6 +299,35 @@ The script creates a `GlobalStandard` deployment with capacity `50` by default a
 
 Deploy SFT and RFT under distinct names. These deployment names, not the fine-tuning job IDs, are passed to the next stage.
 
+## Redeploying To A Different Subscription
+
+A fine-tuned model artifact is owned by the Azure AI Foundry account where the training job ran. Deleting a *deployment* does not delete that artifact, so a deployment can be recreated later, including under a different subscription, as long as the caller has access to both the source account (to read the exact fine-tuned model ID) and the destination account (to create the deployment).
+
+This was used to restore `supplychain-sft` and `supplychain-rft` after both deployments were deleted from the destination account:
+
+1. **Confirm the source model IDs still exist.** List fine-tuned models on the source Foundry account (the one where the SFT/RFT jobs originally ran) and copy the exact fine-tuned model ID string for each, for example `gpt-4.1-mini-2025-04-14.ft-<job-id>-allocation-sft-v2`. Deployment truncates long names in the portal, so read the ID from the API response, not the UI.
+2. **Confirm the destination account and resource group.** The destination subscription only needs an existing Cognitive Services / Foundry account; it does not need to be the account that ran the fine-tuning job.
+3. **Get a management-plane token** with `DefaultAzureCredential` (or `az account get-access-token`) for scope `https://management.azure.com/.default`. This is a separate scope and endpoint from model inference.
+4. **PUT the deployment directly against the destination account**, with `properties.model.name` set to the source account's fine-tuned model ID:
+
+   ```text
+   PUT https://management.azure.com/subscriptions/<destination-subscription>
+       /resourceGroups/<destination-resource-group>
+       /providers/Microsoft.CognitiveServices/accounts/<destination-account>
+       /deployments/<deployment-name>?api-version=2024-10-01
+
+   {
+     "sku": { "name": "DeveloperTier", "capacity": 1 },
+     "properties": { "model": { "format": "OpenAI", "name": "<fine-tuned-model-id-from-source-account>", "version": "1" } }
+   }
+   ```
+
+   [deploy_finetuned_model.py](deploy_finetuned_model.py) targets `api-version=2023-05-01` and a single subscription/resource-group/account set from `.env`; this recovery instead used a direct ARM REST call at `api-version=2024-10-01` so the destination account, resource group, and subscription could differ from the source while still referencing the source model ID.
+5. **Poll `provisioningState`** on the same deployment resource until it reaches `Succeeded` or `Failed` (`Creating` is the expected in-progress state).
+6. **Verify the restored deployments** with `az cognitiveservices account deployment list`, confirming `name`, `properties.model.name`, `sku.name`, and `sku.capacity` match what was deployed before deletion.
+
+This does not repeat any training: no dataset, grader, or fine-tuning job is touched. It only recreates the hosted deployment pointer to an already-trained model artifact.
+
 ## Handoff To Evaluation
 
 Training-time validation is used to observe the managed job; it is not the final SFT-versus-RFT comparison. After both models are deployed, [04_evaluation/evaluate.py](../04_evaluation/evaluate.py) runs them and the teacher on the same 150 separately generated, held-out scenarios.
