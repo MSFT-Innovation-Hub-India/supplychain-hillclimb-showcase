@@ -53,8 +53,11 @@ def _resolve_model_id(args: argparse.Namespace, headers: dict[str, str]) -> str:
 def main(args: argparse.Namespace) -> None:
     if not args.confirm_paid:
         raise SystemExit("paid deployment blocked; rerun with --confirm-paid")
-    has_source = args.source_subscription and args.source_resource_group and args.source_account and args.source_deployment_name
-    if not args.model_id and not has_source:
+    source_values = (args.source_subscription, args.source_resource_group, args.source_account)
+    if any(source_values) and not all(source_values):
+        raise SystemExit("provide --source-subscription, --source-resource-group, and --source-account together")
+    has_source_lookup = all(source_values) and args.source_deployment_name
+    if not args.model_id and not has_source_lookup:
         raise SystemExit("provide --model-id, or all four --source-* arguments to resolve it")
 
     token = _management_token()
@@ -62,12 +65,23 @@ def main(args: argparse.Namespace) -> None:
 
     model_id = _resolve_model_id(args, headers)
     url = _deployment_url(args.destination_subscription, args.destination_resource_group, args.destination_account, args.deployment_name, args.api_version)
+    model = {"format": "OpenAI", "name": model_id, "version": "1"}
+    if all(source_values):
+        model["source"] = (
+            f"/subscriptions/{args.source_subscription}"
+            f"/resourceGroups/{args.source_resource_group}"
+            "/providers/Microsoft.CognitiveServices"
+            f"/accounts/{args.source_account}"
+        )
     body = {
         "sku": {"name": args.sku, "capacity": args.capacity},
-        "properties": {"model": {"format": "OpenAI", "name": model_id, "version": "1"}},
+        "properties": {"model": model},
     }
     response = httpx.put(url, headers=headers, json=body, timeout=60)
-    response.raise_for_status()
+    if response.is_error:
+        raise RuntimeError(
+            f"Deployment request failed ({response.status_code}): {response.text}"
+        )
 
     deadline = time.monotonic() + args.timeout
     while time.monotonic() < deadline:
@@ -87,7 +101,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("deployment_name", help="Deployment name to create or update in the destination account, e.g. supplychain-sft")
     parser.add_argument("--model-id", help="Fully-qualified fine-tuned model id, e.g. gpt-4.1-mini-2025-04-14.ft-<job-id>-allocation-sft-v2")
-    parser.add_argument("--source-subscription", help="Subscription of the account the model was trained in (only needed to resolve --model-id from an existing deployment)")
+    parser.add_argument("--source-subscription", help="Subscription of the account that owns the fine-tuned model")
     parser.add_argument("--source-resource-group")
     parser.add_argument("--source-account")
     parser.add_argument("--source-deployment-name", help="Existing deployment name in the source account to read properties.model.name from")

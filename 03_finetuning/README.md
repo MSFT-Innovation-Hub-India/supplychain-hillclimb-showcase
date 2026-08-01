@@ -311,6 +311,9 @@ This restored `supplychain-sft` and `supplychain-rft` after both deployments wer
 ```powershell
 .\.venv\Scripts\python.exe 03_finetuning/redeploy_cross_subscription.py supplychain-rft `
   --model-id "o4-mini-2025-04-16.ft-009235590d634c1aa8f35dcde9ecf0e6-allocation-rft" `
+  --source-subscription 3d0abfe2-529f-4aaa-b05e-d697846751cf `
+  --source-resource-group ai-rg `
+  --source-account rft-model-agents `
   --destination-subscription 35d56b9b-9660-4b8a-aaf6-76cfc033ac97 `
   --destination-resource-group rg-foundry-projects `
   --destination-account viarbat-foundry-projects `
@@ -323,6 +326,9 @@ This restored `supplychain-sft` and `supplychain-rft` after both deployments wer
 
 .\.venv\Scripts\python.exe 03_finetuning/redeploy_cross_subscription.py supplychain-sft `
   --model-id "gpt-4.1-mini-2025-04-14.ft-de7a80db303a47a8b56f48cb143b43e2-allocation-sft-v2" `
+  --source-subscription 3d0abfe2-529f-4aaa-b05e-d697846751cf `
+  --source-resource-group ai-rg `
+  --source-account rft-model-agents `
   --destination-subscription 35d56b9b-9660-4b8a-aaf6-76cfc033ac97 `
   --destination-resource-group rg-foundry-projects `
   --destination-account viarbat-foundry-projects `
