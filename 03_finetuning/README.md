@@ -159,6 +159,30 @@ No. This job has no minimum-reward threshold and does not regenerate the same re
 
 Foundry can spend additional compute exploring multiple candidate responses for a prompt. This is closer to generating and comparing several plans, but it is not best-of-N label selection: the highest-scoring plan is not copied into the dataset as a new "correct answer." The optimizer learns from the reward signal across the sampled candidates and batch. Exact rollout counts and optimizer internals are managed by the service and are not exposed as a stable API contract.
 
+### How Reward Becomes Learned Behavior
+
+The grader normally returns a scalar reward, not a causal explanation such as "this plan is better because it reserved W1 capacity for the urgent order." It also does not send one winning plan back as a target for the model to memorize. Conceptually, a policy-gradient update moves the model parameters in the following direction:
+
+$$
+\Delta\theta \propto (R-b)\nabla_\theta\log\pi_\theta(y\mid x)
+$$
+
+Here, $x$ is the scenario, $y$ is a sampled plan, $R$ is its grader reward, $b$ is an expected-reward baseline, and $\pi_\theta(y\mid x)$ is the model's probability of producing that plan. A plan scoring above the baseline reinforces the generation behavior that produced it; behavior associated with below-baseline rewards becomes less likely. This equation is a conceptual description of policy-gradient learning, not a claim about Foundry's undisclosed optimizer implementation.
+
+The difficult part is **credit assignment**. If a 16-order plan earns `0.89`, the scalar reward does not identify whether its warehouse allocation, substitute choice, shipping mode, or preservation of shared capacity was responsible. A zero reward similarly does not identify the exact token that exhausted inventory. Learning emerges statistically across many sampled plans and scenarios: choices that repeatedly occur in higher-reward outcomes are reinforced in contexts where they are useful, while choices correlated with low rewards are discouraged. Diverse training scenarios and a well-shaped grader are therefore essential; otherwise, the model can learn a shortcut or correlation rather than the intended planning strategy.
+
+At inference time, the model does not explicitly "apply the weights" as a separate step. The trained weights are the parameters used in every forward pass to compute the next-token distribution:
+
+$$
+P(\text{next token}\mid\text{scenario, instructions, tokens already generated})
+$$
+
+RFT changes that distribution. For a new scenario, the model ideally generalizes learned patterns such as checking inventory before assignment, preserving scarce capacity for constrained orders, prioritizing tighter deadlines, avoiding unnecessary expedite spending, and respecting shared limits across the complete plan. These behaviors are encoded as distributed statistical patterns rather than as a symbolic optimization algorithm.
+
+The runtime model does **not** ordinarily invoke the grader, enumerate complete alternatives, calculate $Q$ for each one, or select a proven maximum. Its reasoning may consider alternatives, but hidden reasoning tokens are not evidence that it reproduced the deterministic reward calculation or searched the full decision space. RFT produces a policy that is more likely to generate a high-reward plan; it does not provide a feasibility or global-optimality guarantee for every new combination of orders.
+
+When such guarantees matter, keep deterministic machinery in the runtime path. The application can validate one generated plan and repair or retry failures, generate and grade several plans and choose $\max_i Q_i$, or use a mathematical optimizer for the final allocation. In this problem space, RFT is best understood as training a stronger planning heuristic, not installing the grader or an exact solver inside the model.
+
 For this request:
 
 - `compute_multiplier=2` sets the exploration-compute allocation to twice the service's base amount. More exploration compute lets the managed trainer sample and compare a broader set of candidate behavior. It does **not** specify exactly two plans per record; Foundry does not expose a fixed candidate count for this value.

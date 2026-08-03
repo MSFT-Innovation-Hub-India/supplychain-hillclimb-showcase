@@ -81,6 +81,8 @@ $$
 
 Here, $S$ is priority-weighted on-time service, $M$ is retained margin, and $C_e$ is fulfillment-adjusted shipping-cost efficiency. This gives RFT more information than a pass/fail label and directly aligns training with the measured business objective.
 
+See [how reward becomes learned behavior](03_finetuning/README.md#how-reward-becomes-learned-behavior) for a detailed explanation of policy-gradient updates, credit assignment, how trained weights affect new scenarios at inference time, and why the resulting model is not an exact optimization solver.
+
 For example, in the sample scenario, order O1 needs three units of SKU A while W1 has only two. A candidate that ships O1 from W1 receives zero reward because it exceeds inventory, regardless of how attractive the rest of the plan looks. Shipping O1 from W2 is feasible. For O2, W2 standard delivery meets the tighter 18-hour deadline, so choosing standard preserves service while avoiding unnecessary expedite cost. Across the complete plan, the grader also checks that assigning these orders has not exhausted W2 capacity or the shared expedite budget needed by another constrained order. Rewards therefore steer the model toward the right warehouse, SKU or approved substitute, shipping mode, and globally feasible allocation rather than merely the right JSON shape.
 
 ### Workload And Latency Context
